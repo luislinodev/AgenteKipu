@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard — AgentePago</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1>AgentePago</h1>
+        <nav>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'crear_tarea' %}">Nueva tarea</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h2>Tareas</h2>
+
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if tasks %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Trabajador</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                        <tr>
+                            <td>{{ task.titulo }}</td>
+                            <td>{{ task.worker.nombre }}</td>
+                            <td>{{ task.monto }}</td>
+                            <td><span class="estado estado-{{ task.estado }}">{{ task.get_estado_display }}</span></td>
+                            <td class="acciones">
+                                {% if task.estado == "pendiente" %}
+                                    <form method="post" action="{% url 'marcar_completada' task.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit">Marcar completada</button>
+                                    </form>
+                                {% elif task.estado == "completada" %}
+                                    <form method="post" action="{% url 'marcar_verificada' task.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit">Verificar y pagar</button>
+                                    </form>
+                                {% endif %}
+                                <a href="{% url 'detalle_pago' task.id %}">Ver pago</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No hay tareas todavía. <a href="{% url 'crear_tarea' %}">Crea la primera</a>.</p>
+        {% endif %}
+    </main>
+</body>
+</html>

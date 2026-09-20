@@ -1,0 +1,134 @@
+:root {
+    color-scheme: light;
+    --bg: #f4f1ea;
+    --ink: #1c1b16;
+    --muted: #5c574c;
+    --card: #fffdf7;
+    --line: #d8d0c0;
+    --accent: #2f5d50;
+    --accent-ink: #fffdf7;
+    --danger: #8a2b2b;
+    --ok: #2f5d50;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--bg);
+    color: var(--ink);
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+}
+
+.topbar h1 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+nav a {
+    margin-left: 1rem;
+    color: var(--accent);
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+}
+
+th,
+td {
+    text-align: left;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.acciones {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.acciones form {
+    margin: 0;
+}
+
+button,
+.form button {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 0;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    font: inherit;
+}
+
+.form {
+    display: grid;
+    gap: 0.5rem;
+    max-width: 520px;
+    background: var(--card);
+    padding: 1rem;
+    border: 1px solid var(--line);
+}
+
+.form input,
+.form textarea,
+.form select {
+    width: 100%;
+    font: inherit;
+    padding: 0.4rem;
+    margin-bottom: 0.6rem;
+}
+
+fieldset {
+    border: 1px solid var(--line);
+    margin: 0 0 0.75rem;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.messages {
+    list-style: none;
+    padding: 0;
+}
+
+.messages .error {
+    color: var(--danger);
+}
+
+.messages .success {
+    color: var(--ok);
+}
+
+.estado {
+    text-transform: lowercase;
+}
+
+.estado-pendiente { color: var(--muted); }
+.estado-completada { color: #8a5a12; }
+.estado-verificada { color: var(--accent); }
+.estado-pagada { color: var(--ok); font-weight: bold; }
