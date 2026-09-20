@@ -1,6 +1,6 @@
 > **⚠️ Actualizado — pivote de narrativa al Caso 3 (recolección de aceite usado), misma arquitectura técnica ya definida.**
 
-# Plan de Desarrollo — RutaVerificada (nombre tentativo)
+# Plan de Desarrollo — AgenteKipu
 **Stellar Odyssey Perú · Track: AI Agents & Automated Workflows**
 
 > Supuesto que sigo dando por cierto: los 3 compañeros tienen bases de programación (no principiantes absolutos) y experiencia vibe-codeando con IA. Si cambia el equipo, hay que revisar la sección 5.
@@ -88,14 +88,14 @@ flowchart LR
 ## 5. Estructura de carpetas
 
 ```
-rutaverificada/
+AgenteKipu/
 ├── manage.py
 ├── requirements.txt
 ├── .env.example                  ← nunca subir .env real (incluye GEMINI_API_KEY)
 ├── .gitignore
 ├── LICENSE                       ← MIT o Apache 2.0
 │
-├── rutaverificada/                configuración del proyecto Django
+├── agentekipu/                    configuración del proyecto Django
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py

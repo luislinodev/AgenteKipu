@@ -2,6 +2,10 @@ from django.contrib import admin
 
 from .models import Payment, Task, Worker
 
+admin.site.site_header = "AgenteKipu"
+admin.site.site_title = "AgenteKipu"
+admin.site.index_title = "Administración"
+
 
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):

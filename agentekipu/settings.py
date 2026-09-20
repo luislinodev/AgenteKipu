@@ -1,5 +1,5 @@
 """
-Django settings for agentepago project.
+Django settings for agentekipu project.
 """
 
 import os
@@ -40,7 +40,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "agentepago.urls"
+ROOT_URLCONF = "agentekipu.urls"
 
 TEMPLATES = [
     {
@@ -57,7 +57,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "agentepago.wsgi.application"
+WSGI_APPLICATION = "agentekipu.wsgi.application"
 
 DATABASES = {
     "default": {
