@@ -48,6 +48,10 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         )
         return
 
+    # Sin la señal del local, Gemini no cambia el estado ni cierra la confirmación.
+    if instance.confirmacion is None:
+        return
+
     if instance.confirmacion == Punto.Confirmacion.NO:
         _marcar_en_revision(instance, "El punto confirmó No.")
         return
@@ -64,9 +68,6 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
             instance,
             "El conteo de Gemini no es consistente con lo reportado.",
         )
-        return
-
-    if instance.confirmacion != Punto.Confirmacion.SI:
         return
 
     if instance.gemini_consistente is not True:

@@ -9,8 +9,6 @@ from .gemini_check import chequear_consistencia
 from .models import Operador, Punto, Recolector, Ruta
 from .signals import intentar_pago_si_corresponde
 
-_ESTADOS_ABIERTOS = (Punto.Estado.PENDIENTE, Punto.Estado.CONFIRMADO)
-
 
 def dashboard(request):
     if request.user.is_authenticated:
@@ -19,7 +17,7 @@ def dashboard(request):
 
 
 def _puede_confirmar(punto):
-    return punto.confirmacion is None and punto.estado in _ESTADOS_ABIERTOS
+    return punto.confirmacion is None and punto.estado != Punto.Estado.PAGADO
 
 
 def confirmar_punto(request, token):
@@ -48,13 +46,16 @@ def confirmar_punto(request, token):
             },
         )
 
-    filas = Punto.objects.filter(
-        pk=punto.pk,
-        confirmacion__isnull=True,
-        estado__in=_ESTADOS_ABIERTOS,
-    ).update(
-        confirmacion=respuesta,
-        confirmado_en=timezone.now(),
+    filas = (
+        Punto.objects.filter(
+            pk=punto.pk,
+            confirmacion__isnull=True,
+        )
+        .exclude(estado=Punto.Estado.PAGADO)
+        .update(
+            confirmacion=respuesta,
+            confirmado_en=timezone.now(),
+        )
     )
     punto = Punto.objects.get(pk=punto.pk)
 
