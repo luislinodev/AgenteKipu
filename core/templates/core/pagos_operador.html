@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pagos — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
+        <nav>
+            <span>{{ operador.nombre }}</span>
+            <a href="{% url 'panel_operador' %}">Rutas</a>
+            <a href="{% url 'pagos_operador' %}">Pagos</a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary">Salir</button>
+            </form>
+        </nav>
+    </header>
+    <main class="container">
+        <h2>Pagos enviados</h2>
+        <p class="lead">El agente ya mandó estos pagos. Arriba está el saldo de la wallet que paga; abajo, a quién, por qué ruta y cuánto.</p>
+        <section class="card">
+            <p><strong>Saldo en la wallet que paga:</strong> <span data-live="saldo">{% if saldo_display %}{{ saldo_display }}{% else %}—{% endif %}</span></p>
+        </section>
+
+        <div data-live-url="{% url 'estado_pagos_operador' %}" data-live-kind="pagos-operador" data-live-interval="3000">
+            <div class="table-wrap" data-live-tabla {% if not pagos %}hidden{% endif %}>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>A quién</th>
+                            <th>Ruta</th>
+                            <th>Fecha</th>
+                            <th>Monto</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pago in pagos %}
+                            <tr data-pago-id="{{ pago.id }}">
+                                <td>{{ pago.ruta.recolector.nombre }}</td>
+                                <td><a href="{% url 'detalle_ruta_operador' pago.ruta_id %}">{{ pago.ruta.punto.nombre }}</a></td>
+                                <td>{{ pago.ruta.fecha }}</td>
+                                <td>{{ pago.monto }} XLM</td>
+                                <td class="acciones">
+                                    {% if pago.tx_hash %}
+                                        <a href="https://stellar.expert/explorer/testnet/tx/{{ pago.tx_hash }}" target="_blank" rel="noopener noreferrer">Ver transferencia</a>
+                                    {% else %}
+                                        <span class="muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted" data-live-vacio {% if pagos %}hidden{% endif %}>Todavía no salió ningún pago.</p>
+        </div>
+    </main>
+    <script src="{% static 'core/live.js' %}" defer></script>
+</body>
+</html>

@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Payment, Punto
+from .models import Payment, Ruta
 from .stellar_agent import (
     FondosInsuficientesError,
     HorizonTransactionError,
@@ -17,42 +17,41 @@ logger = logging.getLogger(__name__)
 class _OrdenPago:
     """Datos mínimos para stellar_agent, sin acoplarlo a Django."""
 
-    def __init__(self, punto):
-        self.pk = punto.pk
-        self.monto = punto.monto
-        self.direccion_stellar = punto.ruta.recolector.direccion_stellar
+    def __init__(self, ruta):
+        self.pk = ruta.pk
+        self.monto = ruta.monto
+        self.direccion_stellar = ruta.recolector.direccion_stellar
 
 
-def _marcar_en_revision(punto, motivo):
-    if punto.estado == Punto.Estado.PAGADO:
+def _marcar_en_revision(ruta, motivo):
+    if ruta.estado == Ruta.Estado.PAGADO:
         return
-    if punto.estado == Punto.Estado.EN_REVISION and punto.motivo_no_pago == motivo:
+    if ruta.estado == Ruta.Estado.EN_REVISION and ruta.motivo_no_pago == motivo:
         return
-    Punto.objects.filter(pk=punto.pk).update(
-        estado=Punto.Estado.EN_REVISION,
+    Ruta.objects.filter(pk=ruta.pk).update(
+        estado=Ruta.Estado.EN_REVISION,
         motivo_no_pago=motivo,
     )
-    punto.estado = Punto.Estado.EN_REVISION
-    punto.motivo_no_pago = motivo
+    ruta.estado = Ruta.Estado.EN_REVISION
+    ruta.motivo_no_pago = motivo
 
 
-@receiver(post_save, sender=Punto)
+@receiver(post_save, sender=Ruta)
 def intentar_pago_si_corresponde(sender, instance, **kwargs):
-    if instance.estado == Punto.Estado.PAGADO:
+    if instance.estado == Ruta.Estado.PAGADO:
         return
 
-    if Payment.objects.filter(punto=instance).exists():
+    if Payment.objects.filter(ruta=instance).exists():
         logger.warning(
-            "El punto %s ya tiene un Payment. No se vuelve a llamar a procesar_pago.",
+            "La ruta %s ya tiene un Payment. No se vuelve a llamar a procesar_pago.",
             instance.pk,
         )
         return
 
-    # Sin la señal del local, Gemini no cambia el estado ni cierra la confirmación.
     if instance.confirmacion is None:
         return
 
-    if instance.confirmacion == Punto.Confirmacion.NO:
+    if instance.confirmacion == Ruta.Confirmacion.NO:
         _marcar_en_revision(instance, "El punto confirmó No.")
         return
 
@@ -71,23 +70,23 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         return
 
     if instance.gemini_consistente is not True:
-        if instance.estado == Punto.Estado.PENDIENTE:
-            Punto.objects.filter(pk=instance.pk).update(
-                estado=Punto.Estado.CONFIRMADO
+        if instance.estado == Ruta.Estado.PENDIENTE:
+            Ruta.objects.filter(pk=instance.pk).update(
+                estado=Ruta.Estado.CONFIRMADO
             )
-            instance.estado = Punto.Estado.CONFIRMADO
+            instance.estado = Ruta.Estado.CONFIRMADO
         return
 
     try:
         payment = Payment.objects.create(
-            punto=instance,
+            ruta=instance,
             tx_hash="",
             monto=instance.monto,
             estado="pendiente",
         )
     except IntegrityError:
         logger.warning(
-            "El punto %s ya tiene un Payment (carrera en el INSERT). "
+            "La ruta %s ya tiene un Payment (carrera en el INSERT). "
             "No se llama a procesar_pago.",
             instance.pk,
         )
@@ -98,11 +97,11 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         payment.tx_hash = tx_hash
         payment.estado = "completado"
         payment.save(update_fields=["tx_hash", "estado"])
-        Punto.objects.filter(pk=instance.pk).update(estado=Punto.Estado.PAGADO)
-        instance.estado = Punto.Estado.PAGADO
+        Ruta.objects.filter(pk=instance.pk).update(estado=Ruta.Estado.PAGADO)
+        instance.estado = Ruta.Estado.PAGADO
         instance.pago_ok = tx_hash
         logger.info(
-            "Pago enviado para punto %s. hash=%s monto=%s",
+            "Pago enviado para ruta %s. hash=%s monto=%s",
             instance.pk,
             tx_hash,
             instance.monto,
@@ -111,7 +110,7 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         payment.delete()
         _marcar_en_revision(instance, str(exc))
         logger.error(
-            "Pago no enviado. Punto %s no queda pagado. %s",
+            "Pago no enviado. Ruta %s no queda pagada. %s",
             instance.pk,
             exc,
         )
@@ -122,7 +121,7 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
             "No se pudo completar el pago automático. Revisa el log de la consola.",
         )
         logger.exception(
-            "Error no controlado al pagar el punto %s: %s",
+            "Error no controlado al pagar la ruta %s: %s",
             instance.pk,
             exc,
         )

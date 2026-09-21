@@ -1,4 +1,6 @@
+import logging
 import os
+import time
 from decimal import Decimal
 
 from stellar_sdk import Asset, Keypair, Network, Server, TransactionBuilder
@@ -7,6 +9,10 @@ from stellar_sdk.exceptions import BaseHorizonError
 HORIZON_TESTNET_URL = "https://horizon-testnet.stellar.org"
 STROOPS_PER_XLM = Decimal("10000000")
 MEMO_TEXT_MAX_BYTES = 28
+_SALDO_TTL_S = 20.0
+
+logger = logging.getLogger(__name__)
+_SALDO_CACHE: dict[str, tuple[float, Decimal | None]] = {}
 
 
 class FondosInsuficientesError(ValueError):
@@ -33,7 +39,7 @@ def procesar_pago(pago) -> str:
 
     monto = Decimal(pago.monto)
     if monto <= 0:
-        raise ValueError(f"El monto del punto {pago.pk} debe ser mayor que cero.")
+        raise ValueError(f"El monto de la ruta {pago.pk} debe ser mayor que cero.")
 
     saldo = _saldo_nativo(source_account)
     reserva = _margen_reserva(server, source_account)
@@ -49,7 +55,7 @@ def procesar_pago(pago) -> str:
         )
 
     destino = pago.direccion_stellar
-    memo = _memo_punto(pago.pk)
+    memo = _memo_ruta(pago.pk)
 
     try:
         transaction = (
@@ -110,12 +116,47 @@ def _margen_reserva(server: Server, account) -> Decimal:
     return (2 + subentries + sponsoring - sponsored) * base_reserve
 
 
-def _memo_punto(punto_id) -> str:
-    memo = f"Pago punto #{punto_id}"
+def _memo_ruta(ruta_id) -> str:
+    memo = f"Pago ruta #{ruta_id}"
     encoded = memo.encode("utf-8")
     if len(encoded) <= MEMO_TEXT_MAX_BYTES:
         return memo
     return encoded[:MEMO_TEXT_MAX_BYTES].decode("utf-8", errors="ignore")
+
+
+def direccion_cuenta_pagadora() -> str:
+    secret = os.environ.get("STELLAR_SECRET_KEY", "").strip()
+    if not secret:
+        return ""
+    try:
+        return Keypair.from_secret(secret).public_key
+    except Exception:
+        logger.exception("STELLAR_SECRET_KEY no es una clave secreta válida.")
+        return ""
+
+
+def consultar_saldo_xlm(direccion: str) -> Decimal | None:
+    direccion = (direccion or "").strip()
+    if not direccion:
+        return None
+    ahora = time.monotonic()
+    cacheado = _SALDO_CACHE.get(direccion)
+    if cacheado and ahora - cacheado[0] < _SALDO_TTL_S:
+        return cacheado[1]
+    saldo = _leer_saldo_xlm(direccion)
+    _SALDO_CACHE[direccion] = (ahora, saldo)
+    return saldo
+
+
+def _leer_saldo_xlm(direccion: str) -> Decimal | None:
+    horizon_url = os.environ.get("STELLAR_HORIZON_URL", HORIZON_TESTNET_URL).strip()
+    server = Server(horizon_url=horizon_url)
+    try:
+        account = server.load_account(direccion)
+        return _saldo_nativo(account)
+    except Exception:
+        logger.exception("No se pudo leer el saldo de %s.", direccion)
+        return None
 
 
 def _mensaje_horizon(exc: BaseHorizonError) -> str:

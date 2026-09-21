@@ -49,121 +49,7 @@
         flash(el);
     }
 
-    function setLinkCell(td, urlConfirmacion) {
-        if (!td) {
-            return;
-        }
-        const input = td.querySelector("input.link-copiar");
-        if (urlConfirmacion) {
-            if (input) {
-                if (input.value !== urlConfirmacion) {
-                    input.value = urlConfirmacion;
-                    flash(td);
-                }
-                return;
-            }
-            td.replaceChildren();
-            const field = document.createElement("input");
-            field.className = "link-copiar";
-            field.type = "text";
-            field.readOnly = true;
-            field.value = urlConfirmacion;
-            field.addEventListener("click", function () {
-                field.select();
-            });
-            td.appendChild(field);
-            flash(td);
-            return;
-        }
-        if (!input && td.querySelector(".muted")) {
-            return;
-        }
-        td.replaceChildren();
-        const span = document.createElement("span");
-        span.className = "muted";
-        span.textContent = "Todavía no hay foto; el link se genera al subirla.";
-        td.appendChild(span);
-        flash(td);
-    }
-
-    function renderRutaRow(punto) {
-        const tr = document.createElement("tr");
-        tr.dataset.puntoId = String(punto.id);
-
-        const tdLocal = document.createElement("td");
-        const link = document.createElement("a");
-        link.href = punto.detalle_url;
-        link.textContent = punto.nombre_local;
-        tdLocal.appendChild(link);
-
-        const tdEstado = document.createElement("td");
-        const estado = document.createElement("span");
-        estado.dataset.live = "estado";
-        setEstado(estado, punto.estado, punto.estado_display);
-        tdEstado.appendChild(estado);
-
-        const tdReportado = document.createElement("td");
-        tdReportado.dataset.live = "reportado";
-        tdReportado.textContent = dash(punto.cantidad_baldes);
-
-        const tdGemini = document.createElement("td");
-        tdGemini.dataset.live = "gemini";
-        tdGemini.textContent = dash(punto.gemini);
-
-        const tdConf = document.createElement("td");
-        tdConf.dataset.live = "confirmacion";
-        tdConf.textContent = dash(punto.confirmacion_display);
-
-        const tdMotivo = document.createElement("td");
-        tdMotivo.dataset.live = "motivo";
-        tdMotivo.textContent = punto.motivo_no_pago ? punto.motivo_no_pago : "—";
-
-        const tdLink = document.createElement("td");
-        tdLink.dataset.live = "link";
-        setLinkCell(tdLink, punto.url_confirmacion);
-
-        tr.append(tdLocal, tdEstado, tdReportado, tdGemini, tdConf, tdMotivo, tdLink);
-        return tr;
-    }
-
-    function applyRuta(data) {
-        const tbody = root.querySelector("tbody");
-        if (!tbody || !Array.isArray(data.puntos)) {
-            return;
-        }
-        const ids = data.puntos.map((punto) => String(punto.id)).join(",");
-        const existing = Array.from(tbody.querySelectorAll("tr[data-punto-id]"))
-            .map((tr) => tr.dataset.puntoId)
-            .join(",");
-        if (ids !== existing) {
-            tbody.replaceChildren(...data.puntos.map(renderRutaRow));
-            return;
-        }
-        data.puntos.forEach((punto) => {
-            const tr = tbody.querySelector('tr[data-punto-id="' + punto.id + '"]');
-            if (!tr) {
-                return;
-            }
-            setEstado(
-                tr.querySelector('[data-live="estado"]'),
-                punto.estado,
-                punto.estado_display
-            );
-            setText(tr.querySelector('[data-live="reportado"]'), punto.cantidad_baldes);
-            setText(tr.querySelector('[data-live="gemini"]'), punto.gemini);
-            setText(
-                tr.querySelector('[data-live="confirmacion"]'),
-                punto.confirmacion_display
-            );
-            setText(
-                tr.querySelector('[data-live="motivo"]'),
-                punto.motivo_no_pago || "—"
-            );
-            setLinkCell(tr.querySelector('[data-live="link"]'), punto.url_confirmacion);
-        });
-    }
-
-    function applyPunto(data) {
+    function applyDetalleRuta(data) {
         setEstado(
             root.querySelector('[data-live="estado"]'),
             data.estado,
@@ -210,45 +96,73 @@
                 sinLink.hidden = false;
             }
         }
+
+        const conFoto = root.querySelector("[data-live-con-foto]");
+        const sinFoto = root.querySelector("[data-live-sin-foto]");
+        const img = root.querySelector('[data-live="foto"]');
+        if (data.foto_url) {
+            if (conFoto) {
+                conFoto.hidden = false;
+            }
+            if (sinFoto) {
+                sinFoto.hidden = true;
+            }
+            if (img && img.getAttribute("src") !== data.foto_url) {
+                img.src = data.foto_url;
+                img.hidden = false;
+                flash(img);
+            }
+        } else {
+            if (conFoto) {
+                conFoto.hidden = true;
+            }
+            if (sinFoto) {
+                sinFoto.hidden = false;
+            }
+            if (img) {
+                img.removeAttribute("src");
+                img.hidden = true;
+            }
+        }
     }
 
-    function renderRecolectorRow(punto) {
+    function renderRecolectorRow(ruta) {
         const tr = document.createElement("tr");
-        tr.dataset.puntoId = String(punto.id);
+        tr.dataset.rutaId = String(ruta.id);
 
         const tdLocal = document.createElement("td");
-        tdLocal.textContent = punto.nombre_local;
+        tdLocal.textContent = ruta.nombre_local;
 
-        const tdRuta = document.createElement("td");
-        tdRuta.textContent = punto.ruta;
+        const tdFecha = document.createElement("td");
+        tdFecha.textContent = ruta.fecha;
 
         const tdEstado = document.createElement("td");
         const estado = document.createElement("span");
         estado.dataset.live = "estado";
-        setEstado(estado, punto.estado, punto.estado_display);
+        setEstado(estado, ruta.estado, ruta.estado_display);
         tdEstado.appendChild(estado);
 
         const tdAcciones = document.createElement("td");
         tdAcciones.className = "acciones";
         tdAcciones.dataset.live = "acciones";
-        fillRecolectorAcciones(tdAcciones, punto);
+        fillRecolectorAcciones(tdAcciones, ruta);
 
-        tr.append(tdLocal, tdRuta, tdEstado, tdAcciones);
+        tr.append(tdLocal, tdFecha, tdEstado, tdAcciones);
         return tr;
     }
 
-    function fillRecolectorAcciones(td, punto) {
+    function fillRecolectorAcciones(td, ruta) {
         td.replaceChildren();
-        if (punto.tiene_foto) {
+        if (ruta.tiene_foto) {
             const span = document.createElement("span");
             span.className = "muted";
             span.textContent = "Foto cargada";
             td.appendChild(span);
             return;
         }
-        if (punto.puede_subir && punto.subir_url) {
+        if (ruta.puede_subir && ruta.subir_url) {
             const link = document.createElement("a");
-            link.href = punto.subir_url;
+            link.href = ruta.subir_url;
             link.textContent = "Subir foto";
             td.appendChild(link);
         }
@@ -256,34 +170,35 @@
 
     function applyRecolector(data) {
         const tbody = root.querySelector("tbody");
-        if (!tbody || !Array.isArray(data.puntos)) {
+        if (!tbody || !Array.isArray(data.rutas)) {
             return;
         }
-        const ids = data.puntos.map((punto) => String(punto.id)).join(",");
-        const existing = Array.from(tbody.querySelectorAll("tr[data-punto-id]"))
-            .map((tr) => tr.dataset.puntoId)
+        const ids = data.rutas.map((ruta) => String(ruta.id)).join(",");
+        const existing = Array.from(tbody.querySelectorAll("tr[data-ruta-id]"))
+            .map((tr) => tr.dataset.rutaId)
             .join(",");
         if (ids !== existing) {
-            tbody.replaceChildren(...data.puntos.map(renderRecolectorRow));
+            tbody.replaceChildren(...data.rutas.map(renderRecolectorRow));
             return;
         }
-        data.puntos.forEach((punto) => {
-            const tr = tbody.querySelector('tr[data-punto-id="' + punto.id + '"]');
+        data.rutas.forEach((ruta) => {
+            const tr = tbody.querySelector('tr[data-ruta-id="' + ruta.id + '"]');
             if (!tr) {
                 return;
             }
             setEstado(
                 tr.querySelector('[data-live="estado"]'),
-                punto.estado,
-                punto.estado_display
+                ruta.estado,
+                ruta.estado_display
             );
+            const acciones = tr.querySelector('[data-live="acciones"]');
             if (acciones) {
                 const hasFoto = Boolean(acciones.querySelector(".muted"));
                 const hasLink = Boolean(acciones.querySelector("a"));
-                const wantFoto = Boolean(punto.tiene_foto);
-                const wantLink = Boolean(punto.puede_subir && punto.subir_url);
+                const wantFoto = Boolean(ruta.tiene_foto);
+                const wantLink = Boolean(ruta.puede_subir && ruta.subir_url);
                 if (hasFoto !== wantFoto || hasLink !== wantLink) {
-                    fillRecolectorAcciones(acciones, punto);
+                    fillRecolectorAcciones(acciones, ruta);
                     flash(acciones);
                 }
             }
@@ -304,10 +219,12 @@
         const tdRec = document.createElement("td");
         tdRec.dataset.live = "recolector";
         tdRec.textContent = ruta.recolector;
-        const tdPuntos = document.createElement("td");
-        tdPuntos.dataset.live = "puntos";
-        tdPuntos.textContent = String(ruta.puntos);
-        tr.append(tdNombre, tdFecha, tdRec, tdPuntos);
+        const tdEstado = document.createElement("td");
+        const estado = document.createElement("span");
+        estado.dataset.live = "estado";
+        setEstado(estado, ruta.estado, ruta.estado_display);
+        tdEstado.appendChild(estado);
+        tr.append(tdNombre, tdFecha, tdRec, tdEstado);
         return tr;
     }
 
@@ -331,8 +248,92 @@
             }
             setText(tr.querySelector('[data-live="fecha"]'), ruta.fecha);
             setText(tr.querySelector('[data-live="recolector"]'), ruta.recolector);
-            setText(tr.querySelector('[data-live="puntos"]'), ruta.puntos);
+            setEstado(
+                tr.querySelector('[data-live="estado"]'),
+                ruta.estado,
+                ruta.estado_display
+            );
         });
+    }
+
+    function renderPagoRow(pago, operador) {
+        const tr = document.createElement("tr");
+        tr.dataset.pagoId = String(pago.id);
+
+        if (operador) {
+            const tdQuien = document.createElement("td");
+            tdQuien.textContent = pago.recolector;
+            tr.appendChild(tdQuien);
+        }
+
+        const tdLocal = document.createElement("td");
+        if (operador && pago.ruta_url) {
+            const link = document.createElement("a");
+            link.href = pago.ruta_url;
+            link.textContent = pago.local;
+            tdLocal.appendChild(link);
+        } else {
+            tdLocal.textContent = pago.local;
+        }
+
+        const tdFecha = document.createElement("td");
+        tdFecha.textContent = dash(pago.fecha);
+
+        const tdMonto = document.createElement("td");
+        tdMonto.textContent = dash(pago.monto_display);
+
+        const tdTx = document.createElement("td");
+        tdTx.className = "acciones";
+        if (pago.tx_url) {
+            const link = document.createElement("a");
+            link.href = pago.tx_url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "Ver transferencia";
+            tdTx.appendChild(link);
+        } else {
+            const span = document.createElement("span");
+            span.className = "muted";
+            span.textContent = "—";
+            tdTx.appendChild(span);
+        }
+
+        tr.append(tdLocal, tdFecha, tdMonto, tdTx);
+        return tr;
+    }
+
+    function applyPagos(data, operador) {
+        setText(root.querySelector('[data-live="saldo"]'), data.saldo_display || "—");
+        const tbody = root.querySelector("tbody");
+        const tabla = root.querySelector("[data-live-tabla]");
+        const vacio = root.querySelector("[data-live-vacio]");
+        if (!Array.isArray(data.pagos)) {
+            return;
+        }
+        if (tabla) {
+            tabla.hidden = data.pagos.length === 0;
+        }
+        if (vacio) {
+            vacio.hidden = data.pagos.length !== 0;
+        }
+        if (!tbody) {
+            return;
+        }
+        const ids = data.pagos.map(function (pago) {
+            return String(pago.id);
+        }).join(",");
+        const existing = Array.from(tbody.querySelectorAll("tr[data-pago-id]"))
+            .map(function (tr) {
+                return tr.dataset.pagoId;
+            })
+            .join(",");
+        if (ids !== existing) {
+            tbody.replaceChildren(
+                ...data.pagos.map(function (pago) {
+                    return renderPagoRow(pago, operador);
+                })
+            );
+        }
     }
 
     function applyConfirmar(data) {
@@ -370,14 +371,16 @@
     }
 
     function apply(data) {
-        if (kind === "ruta-operador") {
-            applyRuta(data);
-        } else if (kind === "punto-operador") {
-            applyPunto(data);
+        if (kind === "detalle-ruta") {
+            applyDetalleRuta(data);
         } else if (kind === "panel-recolector") {
             applyRecolector(data);
         } else if (kind === "panel-operador") {
             applyOperador(data);
+        } else if (kind === "pagos-recolector") {
+            applyPagos(data, false);
+        } else if (kind === "pagos-operador") {
+            applyPagos(data, true);
         } else if (kind === "confirmar") {
             applyConfirmar(data);
         }

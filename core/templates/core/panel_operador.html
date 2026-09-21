@@ -13,6 +13,7 @@
         <nav>
             <span>{{ operador.nombre }}</span>
             <a href="{% url 'panel_operador' %}">Rutas</a>
+            <a href="{% url 'pagos_operador' %}">Pagos</a>
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit" class="secondary">Salir</button>
@@ -21,32 +22,34 @@
     </header>
     <main class="container">
         <h2>Rutas</h2>
-        <p class="lead">Abrí una ruta para consultar estado, Gemini, confirmación y motivo, y copiar el link de confirmación. Reenvialo por WhatsApp al dueño de cada local. La foto y el hash quedan en el admin; este panel no paga ni desbloquea.</p>
+        <p class="lead">Cada ruta es un local, un recolector, un monto y una fecha. Abrí una para ver la foto y copiar el link de confirmación. Los pagos enviados están en Pagos. Este panel no paga ni desbloquea.</p>
         {% if rutas %}
             <div class="table-wrap" data-live-url="{% url 'estado_panel_operador' %}" data-live-kind="panel-operador" data-live-interval="3000">
                 <table>
                     <thead>
                         <tr>
-                            <th>Ruta</th>
+                            <th>Local</th>
                             <th>Fecha</th>
                             <th>Recolector</th>
-                            <th>Puntos</th>
+                            <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ruta in rutas %}
                             <tr data-ruta-id="{{ ruta.id }}">
-                                <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.nombre }}</a></td>
+                                <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.punto.nombre }}</a></td>
                                 <td data-live="fecha">{{ ruta.fecha }}</td>
                                 <td data-live="recolector">{{ ruta.recolector.nombre }}</td>
-                                <td data-live="puntos">{{ ruta.puntos.all|length }}</td>
+                                <td>
+                                    <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <p class="muted">No hay rutas todavía. Crealas desde el admin.</p>
+            <p class="muted">No hay rutas todavía. Primero cargá los locales en Puntos y después creá la ruta en el admin.</p>
         {% endif %}
     </main>
     {% if rutas %}

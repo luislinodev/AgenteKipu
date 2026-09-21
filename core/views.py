@@ -4,11 +4,14 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.formats import date_format
+from django.utils.formats import date_format, number_format
 
 from .gemini_check import chequear_consistencia
-from .models import Operador, Punto, Recolector, Ruta
+from .models import Operador, Payment, Recolector, Ruta
 from .signals import intentar_pago_si_corresponde
+from .stellar_agent import consultar_saldo_xlm, direccion_cuenta_pagadora
+
+STELLAR_EXPERT_TX = "https://stellar.expert/explorer/testnet/tx/{}"
 
 
 def dashboard(request):
@@ -17,33 +20,33 @@ def dashboard(request):
     return render(request, "core/dashboard.html")
 
 
-def _puede_confirmar(punto):
-    return punto.confirmacion is None and punto.estado != Punto.Estado.PAGADO
+def _puede_confirmar(ruta):
+    return ruta.confirmacion is None and ruta.estado != Ruta.Estado.PAGADO
 
 
-def _puede_subir_foto(punto):
-    # Una sola subida dispara Gemini y el token. Reemplazar la foto
-    # dejaría reintentar el chequeo de consistencia.
-    # No leer token_confirmacion: en el panel del recolector está en defer.
-    if punto.foto:
+def _puede_subir_foto(ruta):
+    if ruta.foto:
         return False
-    if punto.confirmacion or punto.estado == Punto.Estado.PAGADO:
+    if ruta.confirmacion or ruta.estado == Ruta.Estado.PAGADO:
         return False
     return True
 
 
-def _texto_gemini(punto):
-    if punto.gemini_error:
+def _texto_gemini(ruta):
+    if ruta.gemini_error:
         return "error"
-    if punto.gemini_consistente is True:
-        return f"consistente ({punto.gemini_cantidad})"
-    if punto.gemini_consistente is False:
-        return f"inconsistente ({punto.gemini_cantidad})"
+    if ruta.gemini_consistente is True:
+        return f"consistente ({ruta.gemini_cantidad})"
+    if ruta.gemini_consistente is False:
+        return f"inconsistente ({ruta.gemini_cantidad})"
     return "—"
 
 
 def confirmar_punto(request, token):
-    punto = get_object_or_404(Punto, token_confirmacion=token)
+    ruta = get_object_or_404(
+        Ruta.objects.select_related("punto"),
+        token_confirmacion=token,
+    )
     template = "core/confirmar_punto.html"
 
     if request.method != "POST":
@@ -51,53 +54,53 @@ def confirmar_punto(request, token):
             request,
             template,
             {
-                "punto": punto,
-                "formulario_abierto": _puede_confirmar(punto),
+                "ruta": ruta,
+                "formulario_abierto": _puede_confirmar(ruta),
             },
         )
 
     respuesta = request.POST.get("confirmacion", "").strip()
-    if respuesta not in (Punto.Confirmacion.SI, Punto.Confirmacion.NO):
+    if respuesta not in (Ruta.Confirmacion.SI, Ruta.Confirmacion.NO):
         return render(
             request,
             template,
             {
-                "punto": punto,
-                "formulario_abierto": _puede_confirmar(punto),
+                "ruta": ruta,
+                "formulario_abierto": _puede_confirmar(ruta),
                 "error": "Elegí Sí o No.",
             },
         )
 
     filas = (
-        Punto.objects.filter(
-            pk=punto.pk,
+        Ruta.objects.filter(
+            pk=ruta.pk,
             confirmacion__isnull=True,
         )
-        .exclude(estado=Punto.Estado.PAGADO)
+        .exclude(estado=Ruta.Estado.PAGADO)
         .update(
             confirmacion=respuesta,
             confirmado_en=timezone.now(),
         )
     )
-    punto = Punto.objects.get(pk=punto.pk)
+    ruta = Ruta.objects.select_related("punto").get(pk=ruta.pk)
 
     if filas == 0:
         return render(
             request,
             template,
             {
-                "punto": punto,
+                "ruta": ruta,
                 "formulario_abierto": False,
             },
         )
 
-    intentar_pago_si_corresponde(sender=Punto, instance=punto)
-    punto = Punto.objects.get(pk=punto.pk)
+    intentar_pago_si_corresponde(sender=Ruta, instance=ruta)
+    ruta = Ruta.objects.select_related("punto").get(pk=ruta.pk)
     return render(
         request,
         template,
         {
-            "punto": punto,
+            "ruta": ruta,
             "formulario_abierto": False,
             "respuesta_registrada": True,
         },
@@ -118,40 +121,78 @@ def _operador_actual(request):
     return operador
 
 
-def _url_confirmacion(request, punto):
-    if not punto.token_confirmacion:
+def _url_confirmacion(request, ruta):
+    if not ruta.token_confirmacion:
         return ""
     return request.build_absolute_uri(
-        reverse("confirmar_punto", kwargs={"token": punto.token_confirmacion})
+        reverse("confirmar_punto", kwargs={"token": ruta.token_confirmacion})
     )
 
 
-def _json_punto_operador(request, punto):
+def _url_foto(ruta):
+    if not ruta.foto:
+        return ""
+    return ruta.foto.url
+
+
+def _json_ruta_operador(request, ruta):
     return {
-        "id": punto.pk,
-        "nombre_local": punto.nombre_local,
-        "detalle_url": reverse("detalle_punto_operador", args=[punto.pk]),
-        "estado": punto.estado,
-        "estado_display": punto.get_estado_display(),
-        "cantidad_baldes": punto.cantidad_baldes,
-        "gemini": _texto_gemini(punto),
-        "confirmacion_display": punto.get_confirmacion_display() or "—",
-        "motivo_no_pago": punto.motivo_no_pago or "",
-        "url_confirmacion": _url_confirmacion(request, punto),
+        "id": ruta.pk,
+        "nombre_local": ruta.punto.nombre,
+        "estado": ruta.estado,
+        "estado_display": ruta.get_estado_display(),
+        "cantidad_baldes": ruta.cantidad_baldes,
+        "gemini": _texto_gemini(ruta),
+        "confirmacion_display": ruta.get_confirmacion_display() or "—",
+        "motivo_no_pago": ruta.motivo_no_pago or "",
+        "url_confirmacion": _url_confirmacion(request, ruta),
+        "foto_url": _url_foto(ruta),
+        "fecha": date_format(ruta.fecha),
+        "recolector": ruta.recolector.nombre,
+        "monto": str(ruta.monto),
     }
 
 
-def _json_punto_recolector(punto):
-    puede_subir = _puede_subir_foto(punto)
+def _pagos_queryset(**filtro):
+    return (
+        Payment.objects.filter(**filtro)
+        .select_related("ruta", "ruta__punto", "ruta__recolector")
+        .order_by("-fecha", "-id")
+    )
+
+
+def _saldo_wallet_display(direccion):
+    saldo = consultar_saldo_xlm(direccion)
+    if saldo is None:
+        return ""
+    return f"{number_format(saldo, decimal_pos=7)} XLM"
+
+
+def _json_pago(pago, *, para_operador):
+    datos = {
+        "id": pago.pk,
+        "local": pago.ruta.punto.nombre,
+        "fecha": date_format(pago.ruta.fecha),
+        "monto_display": f"{number_format(pago.monto, decimal_pos=7)} XLM",
+        "tx_url": STELLAR_EXPERT_TX.format(pago.tx_hash) if pago.tx_hash else "",
+    }
+    if para_operador:
+        datos["recolector"] = pago.ruta.recolector.nombre
+        datos["ruta_url"] = reverse("detalle_ruta_operador", args=[pago.ruta_id])
+    return datos
+
+
+def _json_ruta_recolector(ruta):
+    puede_subir = _puede_subir_foto(ruta)
     return {
-        "id": punto.pk,
-        "nombre_local": punto.nombre_local,
-        "ruta": punto.ruta.nombre,
-        "estado": punto.estado,
-        "estado_display": punto.get_estado_display(),
-        "tiene_foto": bool(punto.foto),
+        "id": ruta.pk,
+        "nombre_local": ruta.punto.nombre,
+        "fecha": date_format(ruta.fecha),
+        "estado": ruta.estado,
+        "estado_display": ruta.get_estado_display(),
+        "tiene_foto": bool(ruta.foto),
         "puede_subir": puede_subir,
-        "subir_url": reverse("subir_foto", args=[punto.pk]) if puede_subir else "",
+        "subir_url": reverse("subir_foto", args=[ruta.pk]) if puede_subir else "",
     }
 
 
@@ -167,38 +208,36 @@ def despues_de_entrar(request):
 @login_required
 def panel_recolector(request):
     recolector = _recolector_actual(request)
-    puntos = (
-        Punto.objects.filter(ruta__recolector=recolector)
-        .select_related("ruta")
-        # defer no es control de acceso: el template no recibe el token.
+    rutas = (
+        Ruta.objects.filter(recolector=recolector)
+        .select_related("punto")
         .defer("token_confirmacion")
-        .order_by("ruta__fecha", "id")
+        .order_by("fecha", "id")
     )
     return render(
         request,
         "core/panel_recolector.html",
-        {"recolector": recolector, "puntos": puntos},
+        {"recolector": recolector, "rutas": rutas},
     )
 
 
 @login_required
-def subir_foto(request, punto_id):
+def subir_foto(request, ruta_id):
     recolector = _recolector_actual(request)
-    # defer no es ACL; el 404 sale de ruta__recolector y el template no usa el token.
-    punto = get_object_or_404(
-        Punto.objects.select_related("ruta").defer("token_confirmacion"),
-        pk=punto_id,
-        ruta__recolector=recolector,
+    ruta = get_object_or_404(
+        Ruta.objects.select_related("punto").defer("token_confirmacion"),
+        pk=ruta_id,
+        recolector=recolector,
     )
-    if not _puede_subir_foto(punto):
+    if not _puede_subir_foto(ruta):
         messages.error(
             request,
-            "Este punto ya no admite una foto nueva.",
+            "Esta ruta ya no admite una foto nueva.",
         )
         return redirect("panel_recolector")
 
     if request.method != "POST":
-        return render(request, "core/subir_foto.html", {"punto": punto})
+        return render(request, "core/subir_foto.html", {"ruta": ruta})
 
     foto = request.FILES.get("foto")
     cantidad_raw = request.POST.get("cantidad_baldes", "").strip()
@@ -216,18 +255,18 @@ def subir_foto(request, punto_id):
     if errores:
         for error in errores:
             messages.error(request, error)
-        return render(request, "core/subir_foto.html", {"punto": punto})
+        return render(request, "core/subir_foto.html", {"ruta": ruta})
 
-    punto.foto = foto
-    punto.cantidad_baldes = cantidad
-    punto.save()
-    punto.asegurar_token()
+    ruta.foto = foto
+    ruta.cantidad_baldes = cantidad
+    ruta.save()
+    ruta.asegurar_token()
 
-    punto.foto.open("rb")
+    ruta.foto.open("rb")
     try:
-        foto_bytes = punto.foto.read()
+        foto_bytes = ruta.foto.read()
     finally:
-        punto.foto.close()
+        ruta.foto.close()
     mime_type = getattr(foto, "content_type", "") or "image/jpeg"
 
     resultado = chequear_consistencia(
@@ -235,11 +274,11 @@ def subir_foto(request, punto_id):
         mime_type=mime_type,
         cantidad_reportada=cantidad,
     )
-    punto.gemini_cantidad = resultado.cantidad
-    punto.gemini_consistente = resultado.consistente
-    punto.gemini_respuesta = resultado.respuesta
-    punto.gemini_error = resultado.error
-    punto.save(
+    ruta.gemini_cantidad = resultado.cantidad
+    ruta.gemini_consistente = resultado.consistente
+    ruta.gemini_respuesta = resultado.respuesta
+    ruta.gemini_error = resultado.error
+    ruta.save(
         update_fields=[
             "gemini_cantidad",
             "gemini_consistente",
@@ -247,7 +286,7 @@ def subir_foto(request, punto_id):
             "gemini_error",
         ]
     )
-    messages.success(request, f"Foto recibida para «{punto.nombre_local}».")
+    messages.success(request, f"Foto recibida para «{ruta.punto.nombre}».")
     return redirect("panel_recolector")
 
 
@@ -256,8 +295,7 @@ def panel_operador(request):
     operador = _operador_actual(request)
     rutas = (
         Ruta.objects.filter(operador__user=request.user)
-        .select_related("recolector")
-        .prefetch_related("puntos")
+        .select_related("recolector", "punto")
         .order_by("-fecha", "-id")
     )
     return render(
@@ -271,41 +309,18 @@ def panel_operador(request):
 def detalle_ruta_operador(request, ruta_id):
     operador = _operador_actual(request)
     ruta = get_object_or_404(
-        Ruta.objects.select_related("recolector").prefetch_related("puntos"),
+        Ruta.objects.select_related("recolector", "punto"),
         pk=ruta_id,
         operador__user=request.user,
     )
-    filas = [
-        {
-            "punto": punto,
-            "url_confirmacion": _url_confirmacion(request, punto),
-            "texto_gemini": _texto_gemini(punto),
-        }
-        for punto in ruta.puntos.all()
-    ]
     return render(
         request,
         "core/detalle_ruta_operador.html",
-        {"operador": operador, "ruta": ruta, "filas": filas},
-    )
-
-
-@login_required
-def detalle_punto_operador(request, punto_id):
-    operador = _operador_actual(request)
-    punto = get_object_or_404(
-        Punto.objects.select_related("ruta__recolector"),
-        pk=punto_id,
-        ruta__operador__user=request.user,
-    )
-    return render(
-        request,
-        "core/detalle_punto_operador.html",
         {
             "operador": operador,
-            "punto": punto,
-            "url_confirmacion": _url_confirmacion(request, punto),
-            "texto_gemini": _texto_gemini(punto),
+            "ruta": ruta,
+            "url_confirmacion": _url_confirmacion(request, ruta),
+            "texto_gemini": _texto_gemini(ruta),
         },
     )
 
@@ -315,8 +330,7 @@ def estado_panel_operador(request):
     _operador_actual(request)
     rutas = (
         Ruta.objects.filter(operador__user=request.user)
-        .select_related("recolector")
-        .prefetch_related("puntos")
+        .select_related("recolector", "punto")
         .order_by("-fecha", "-id")
     )
     return JsonResponse(
@@ -324,10 +338,11 @@ def estado_panel_operador(request):
             "rutas": [
                 {
                     "id": ruta.pk,
-                    "nombre": ruta.nombre,
+                    "nombre": ruta.punto.nombre,
                     "fecha": date_format(ruta.fecha),
                     "recolector": ruta.recolector.nombre,
-                    "puntos": len(ruta.puntos.all()),
+                    "estado": ruta.estado,
+                    "estado_display": ruta.get_estado_display(),
                     "url": reverse("detalle_ruta_operador", args=[ruta.pk]),
                 }
                 for ruta in rutas
@@ -340,49 +355,86 @@ def estado_panel_operador(request):
 def estado_ruta_operador(request, ruta_id):
     _operador_actual(request)
     ruta = get_object_or_404(
-        Ruta.objects.prefetch_related("puntos"),
+        Ruta.objects.select_related("recolector", "punto"),
         pk=ruta_id,
         operador__user=request.user,
     )
-    return JsonResponse(
-        {
-            "puntos": [
-                _json_punto_operador(request, punto) for punto in ruta.puntos.all()
-            ]
-        }
-    )
-
-
-@login_required
-def estado_punto_operador(request, punto_id):
-    _operador_actual(request)
-    punto = get_object_or_404(
-        Punto,
-        pk=punto_id,
-        ruta__operador__user=request.user,
-    )
-    return JsonResponse(_json_punto_operador(request, punto))
+    return JsonResponse(_json_ruta_operador(request, ruta))
 
 
 @login_required
 def estado_panel_recolector(request):
     recolector = _recolector_actual(request)
-    puntos = (
-        Punto.objects.filter(ruta__recolector=recolector)
-        .select_related("ruta")
+    rutas = (
+        Ruta.objects.filter(recolector=recolector)
+        .select_related("punto")
         .defer("token_confirmacion")
-        .order_by("ruta__fecha", "id")
+        .order_by("fecha", "id")
     )
     return JsonResponse(
-        {"puntos": [_json_punto_recolector(punto) for punto in puntos]}
+        {"rutas": [_json_ruta_recolector(ruta) for ruta in rutas]}
     )
 
 
 def estado_confirmar_punto(request, token):
-    punto = get_object_or_404(Punto, token_confirmacion=token)
+    ruta = get_object_or_404(Ruta, token_confirmacion=token)
     return JsonResponse(
         {
-            "formulario_abierto": _puede_confirmar(punto),
-            "confirmacion_display": punto.get_confirmacion_display() or "",
+            "formulario_abierto": _puede_confirmar(ruta),
+            "confirmacion_display": ruta.get_confirmacion_display() or "",
+        }
+    )
+
+
+@login_required
+def pagos_recolector(request):
+    recolector = _recolector_actual(request)
+    pagos = _pagos_queryset(ruta__recolector=recolector)
+    return render(
+        request,
+        "core/pagos_recolector.html",
+        {
+            "recolector": recolector,
+            "pagos": pagos,
+            "saldo_display": _saldo_wallet_display(recolector.direccion_stellar),
+        },
+    )
+
+
+@login_required
+def estado_pagos_recolector(request):
+    recolector = _recolector_actual(request)
+    pagos = _pagos_queryset(ruta__recolector=recolector)
+    return JsonResponse(
+        {
+            "saldo_display": _saldo_wallet_display(recolector.direccion_stellar),
+            "pagos": [_json_pago(pago, para_operador=False) for pago in pagos],
+        }
+    )
+
+
+@login_required
+def pagos_operador(request):
+    operador = _operador_actual(request)
+    pagos = _pagos_queryset(ruta__operador=operador)
+    return render(
+        request,
+        "core/pagos_operador.html",
+        {
+            "operador": operador,
+            "pagos": pagos,
+            "saldo_display": _saldo_wallet_display(direccion_cuenta_pagadora()),
+        },
+    )
+
+
+@login_required
+def estado_pagos_operador(request):
+    _operador_actual(request)
+    pagos = _pagos_queryset(ruta__operador__user=request.user)
+    return JsonResponse(
+        {
+            "saldo_display": _saldo_wallet_display(direccion_cuenta_pagadora()),
+            "pagos": [_json_pago(pago, para_operador=True) for pago in pagos],
         }
     )

@@ -11,11 +11,12 @@
     <header class="topbar">
         <h1><a href="{% url 'panel_recolector' %}">AgenteKipu</a></h1>
         <nav>
-            <a href="{% url 'panel_recolector' %}">Mi ruta</a>
+            <a href="{% url 'panel_recolector' %}">Rutas</a>
+            <a href="{% url 'pagos_recolector' %}">Pagos</a>
         </nav>
     </header>
     <main class="container narrow">
-        <h2>Subir foto — {{ punto.nombre_local }}</h2>
+        <h2>Subir foto — {{ ruta.punto.nombre }}</h2>
 
         {% if messages %}
             <ul class="messages">
@@ -32,7 +33,7 @@
             {% csrf_token %}
             <label for="cantidad_baldes">Cantidad de baldes</label>
             <input id="cantidad_baldes" name="cantidad_baldes" type="number" min="0" step="1" required
-                   value="{{ punto.cantidad_baldes|default_if_none:'' }}">
+                   value="{{ ruta.cantidad_baldes|default_if_none:'' }}">
 
             <label for="foto">Foto</label>
             <input id="foto" name="foto" type="file" accept="image/*" required>

@@ -12,6 +12,8 @@
         <h1><a href="{% url 'panel_recolector' %}">AgenteKipu</a></h1>
         <nav>
             <span>{{ recolector.nombre }}</span>
+            <a href="{% url 'panel_recolector' %}">Rutas</a>
+            <a href="{% url 'pagos_recolector' %}">Pagos</a>
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit" class="secondary">Salir</button>
@@ -20,7 +22,7 @@
     </header>
     <main class="container">
         {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
-        <h2>Puntos de recolección</h2>
+        <h2>Rutas asignadas</h2>
         <p class="lead">Al llegar a cada local, subí la foto de los baldes. Esa subida es una sola vez: dispara el chequeo de Gemini y el link de confirmación. El operador se lo reenvía al dueño del local.</p>
 
         {% if messages %}
@@ -31,28 +33,28 @@
             </ul>
         {% endif %}
 
-        {% if puntos %}
+        {% if rutas %}
             <div class="table-wrap" data-live-url="{% url 'estado_panel_recolector' %}" data-live-kind="panel-recolector" data-live-interval="3000">
                 <table>
                     <thead>
                         <tr>
                             <th>Local</th>
-                            <th>Ruta</th>
+                            <th>Fecha</th>
                             <th>Estado</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for punto in puntos %}
-                            <tr data-punto-id="{{ punto.id }}">
-                                <td>{{ punto.nombre_local }}</td>
-                                <td>{{ punto.ruta.nombre }}</td>
-                                <td><span class="estado estado-{{ punto.estado }}" data-live="estado">{{ punto.get_estado_display }}</span></td>
+                        {% for ruta in rutas %}
+                            <tr data-ruta-id="{{ ruta.id }}">
+                                <td>{{ ruta.punto.nombre }}</td>
+                                <td>{{ ruta.fecha }}</td>
+                                <td><span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></td>
                                 <td class="acciones" data-live="acciones">
-                                    {% if punto.foto %}
+                                    {% if ruta.foto %}
                                         <span class="muted">Foto cargada</span>
-                                    {% elif punto.estado != "pagado" and not punto.confirmacion %}
-                                        <a href="{% url 'subir_foto' punto.id %}">Subir foto</a>
+                                    {% elif ruta.estado != "pagado" and not ruta.confirmacion %}
+                                        <a href="{% url 'subir_foto' ruta.id %}">Subir foto</a>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -61,10 +63,10 @@
                 </table>
             </div>
         {% else %}
-            <p class="muted">No tenés puntos asignados.</p>
+            <p class="muted">No tenés rutas asignadas.</p>
         {% endif %}
     </main>
-    {% if puntos %}
+    {% if rutas %}
     <script src="{% static 'core/live.js' %}" defer></script>
     {% endif %}
 </body>

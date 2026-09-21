@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ ruta.nombre }} — AgenteKipu</title>
+    <title>{{ ruta.punto.nombre }} — AgenteKipu</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
 </head>
 <body>
@@ -12,53 +12,48 @@
         <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
         <nav>
             <a href="{% url 'panel_operador' %}">Rutas</a>
+            <a href="{% url 'pagos_operador' %}">Pagos</a>
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit" class="secondary">Salir</button>
             </form>
         </nav>
     </header>
-    <main class="container wide">
-        <h2>{{ ruta.nombre }}</h2>
-        <p class="muted">Recolector: {{ ruta.recolector.nombre }} · {{ ruta.fecha }}</p>
-        <p class="lead">Consultá estado, baldes reportados, Gemini, confirmación y motivo de cada punto. Copiá el link y reenvialo por WhatsApp al dueño del local. No se lo muestres al recolector. La foto y el hash de Stellar están en el admin. Esta tabla se actualiza sola.</p>
+    <main class="container" data-live-url="{% url 'estado_ruta_operador' ruta.id %}" data-live-kind="detalle-ruta" data-live-interval="3000">
+        <h2>{{ ruta.punto.nombre }}</h2>
+        <section class="card">
+            <p><strong>Recolector:</strong> {{ ruta.recolector.nombre }}</p>
+            <p><strong>Fecha:</strong> {{ ruta.fecha }}</p>
+            <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
+            <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></p>
+            <p><strong>Baldes reportados:</strong> <span data-live="cantidad">{% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</span></p>
+            <p><strong>Gemini:</strong> <span data-live="gemini">{{ texto_gemini }}</span></p>
+            <p><strong>Confirmación del local:</strong> <span data-live="confirmacion">{{ ruta.get_confirmacion_display|default:"—" }}</span></p>
+            <p data-live-motivo-wrap {% if not ruta.motivo_no_pago %}hidden{% endif %}>
+                <strong>Motivo:</strong> <span data-live="motivo">{{ ruta.motivo_no_pago }}</span>
+            </p>
+        </section>
 
-        <div class="table-wrap" data-live-url="{% url 'estado_ruta_operador' ruta.id %}" data-live-kind="ruta-operador" data-live-interval="3000">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Local</th>
-                        <th>Estado</th>
-                        <th>Reportado</th>
-                        <th>Gemini</th>
-                        <th>Confirmación</th>
-                        <th>Motivo</th>
-                        <th>Link de confirmación</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for fila in filas %}
-                        <tr data-punto-id="{{ fila.punto.id }}">
-                            <td>
-                                <a href="{% url 'detalle_punto_operador' fila.punto.id %}">{{ fila.punto.nombre_local }}</a>
-                            </td>
-                            <td><span class="estado estado-{{ fila.punto.estado }}" data-live="estado">{{ fila.punto.get_estado_display }}</span></td>
-                            <td data-live="reportado">{% if fila.punto.cantidad_baldes is not None %}{{ fila.punto.cantidad_baldes }}{% else %}—{% endif %}</td>
-                            <td data-live="gemini">{{ fila.texto_gemini }}</td>
-                            <td data-live="confirmacion">{{ fila.punto.get_confirmacion_display|default:"—" }}</td>
-                            <td data-live="motivo">{% if fila.punto.motivo_no_pago %}{{ fila.punto.motivo_no_pago }}{% else %}—{% endif %}</td>
-                            <td data-live="link">
-                                {% if fila.url_confirmacion %}
-                                    <input class="link-copiar" type="text" readonly value="{{ fila.url_confirmacion }}" onclick="this.select()">
-                                {% else %}
-                                    <span class="muted">Todavía no hay foto; el link se genera al subirla.</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <section class="card">
+            <h3>Foto del recolector</h3>
+            <div data-live-con-foto {% if not ruta.foto %}hidden{% endif %}>
+                {% if ruta.foto %}
+                    <img class="foto-visita" data-live="foto" src="{{ ruta.foto.url }}" alt="Foto subida por el recolector en {{ ruta.punto.nombre }}">
+                {% else %}
+                    <img class="foto-visita" data-live="foto" alt="Foto subida por el recolector" hidden>
+                {% endif %}
+            </div>
+            <p class="muted" data-live-sin-foto {% if ruta.foto %}hidden{% endif %}>Todavía no hay foto.</p>
+        </section>
+
+        <section class="card">
+            <h3>Link para WhatsApp</h3>
+            <div data-live-con-link {% if not url_confirmacion %}hidden{% endif %}>
+                <p class="muted">Copiá este link y reenvialo al dueño del local. No se lo muestres al recolector.</p>
+                <input class="link-copiar" type="text" readonly value="{{ url_confirmacion }}" onclick="this.select()">
+            </div>
+            <p class="muted" data-live-sin-link {% if url_confirmacion %}hidden{% endif %}>Todavía no hay link: el recolector aún no subió la foto.</p>
+        </section>
     </main>
     <script src="{% static 'core/live.js' %}" defer></script>
 </body>

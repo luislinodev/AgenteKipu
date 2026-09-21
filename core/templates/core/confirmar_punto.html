@@ -7,7 +7,7 @@
     <title>Confirmar recolección — AgenteKipu</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
 </head>
-<body{% if formulario_abierto %} data-live-url="{% url 'estado_confirmar_punto' punto.token_confirmacion %}" data-live-kind="confirmar" data-live-interval="3000"{% endif %}>
+<body{% if formulario_abierto %} data-live-url="{% url 'estado_confirmar_punto' ruta.token_confirmacion %}" data-live-kind="confirmar" data-live-interval="3000"{% endif %}>
     <header class="topbar">
         <h1>AgenteKipu</h1>
     </header>
@@ -17,10 +17,10 @@
         <p class="lead">No hace falta crear una cuenta. Respondé si se retiraron esos baldes en tu local.</p>
 
         <section class="card">
-            <p><strong>Local:</strong> {{ punto.nombre_local }}</p>
-            <p><strong>Baldes reportados:</strong> {{ punto.cantidad_baldes|default:"—" }}</p>
-            {% if punto.confirmacion %}
-                <p><strong>Tu respuesta:</strong> {{ punto.get_confirmacion_display }}</p>
+            <p><strong>Local:</strong> {{ ruta.punto.nombre }}</p>
+            <p><strong>Baldes reportados:</strong> {{ ruta.cantidad_baldes|default:"—" }}</p>
+            {% if ruta.confirmacion %}
+                <p><strong>Tu respuesta:</strong> {{ ruta.get_confirmacion_display }}</p>
             {% endif %}
         </section>
 
@@ -29,7 +29,7 @@
         {% endif %}
 
         {% if formulario_abierto %}
-            <p>¿Confirmas que se recogieron {% if punto.cantidad_baldes %}{{ punto.cantidad_baldes }}{% else %}estos{% endif %} baldes de aceite en tu local?</p>
+            <p>¿Confirmas que se recogieron {% if ruta.cantidad_baldes %}{{ ruta.cantidad_baldes }}{% else %}estos{% endif %} baldes de aceite en tu local?</p>
             <form method="post" class="form wide">
                 {% csrf_token %}
                 <div class="confirm-actions">
