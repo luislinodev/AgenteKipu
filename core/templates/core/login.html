@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Entrar — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'dashboard' %}">AgenteKipu</a></h1>
+    </header>
+    <main class="container narrow">
+        <h2>Entrar</h2>
+        <p class="lead">Operador y recolector usan la misma pantalla; el sistema abre el panel que corresponde a tu cuenta.</p>
+        {% if form.errors %}
+            <p class="messages"><span class="error">Usuario o contraseña incorrectos.</span></p>
+        {% endif %}
+        <form method="post" class="form">
+            {% csrf_token %}
+            <label for="id_username">Usuario</label>
+            {{ form.username }}
+            <label for="id_password">Contraseña</label>
+            {{ form.password }}
+            <button type="submit">Entrar</button>
+        </form>
+    </main>
+</body>
+</html>

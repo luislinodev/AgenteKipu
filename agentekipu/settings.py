@@ -86,7 +86,13 @@ TIME_ZONE = "America/Lima"
 USE_I18N = True
 USE_TZ = True
 
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "despues_de_entrar"
+LOGOUT_REDIRECT_URL = "login"
+
 STATIC_URL = "static/"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

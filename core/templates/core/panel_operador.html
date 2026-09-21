@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rutas — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
+        <nav>
+            <span>{{ operador.nombre }}</span>
+            <a href="{% url 'panel_operador' %}">Rutas</a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary">Salir</button>
+            </form>
+        </nav>
+    </header>
+    <main class="container">
+        <h2>Rutas</h2>
+        <p class="lead">Abrí una ruta para copiar el link de confirmación y reenviarlo por WhatsApp al dueño de cada local.</p>
+        {% if rutas %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ruta</th>
+                            <th>Fecha</th>
+                            <th>Recolector</th>
+                            <th>Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ruta in rutas %}
+                            <tr>
+                                <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.nombre }}</a></td>
+                                <td>{{ ruta.fecha }}</td>
+                                <td>{{ ruta.recolector.nombre }}</td>
+                                <td>{{ ruta.puntos.all|length }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted">No hay rutas todavía. Crealas desde el admin.</p>
+        {% endif %}
+    </main>
+</body>
+</html>

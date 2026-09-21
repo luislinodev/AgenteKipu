@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subir foto — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'panel_recolector' %}">AgenteKipu</a></h1>
+        <nav>
+            <a href="{% url 'panel_recolector' %}">Mi ruta</a>
+        </nav>
+    </header>
+    <main class="container narrow">
+        <h2>Subir foto — {{ punto.nombre_local }}</h2>
+
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
+        <p class="lead">Indicá cuántos baldes recogiste y subí la foto. El link de confirmación se le muestra al operador, no acá.</p>
+
+        <form method="post" enctype="multipart/form-data" class="form">
+            {% csrf_token %}
+            <label for="cantidad_baldes">Cantidad de baldes</label>
+            <input id="cantidad_baldes" name="cantidad_baldes" type="number" min="0" step="1" required
+                   value="{{ punto.cantidad_baldes|default_if_none:'' }}">
+
+            <label for="foto">Foto</label>
+            <input id="foto" name="foto" type="file" accept="image/*" required>
+
+            <button type="submit">Enviar foto</button>
+        </form>
+    </main>
+</body>
+</html>

@@ -4,68 +4,26 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dashboard — AgenteKipu</title>
+    <title>AgenteKipu</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
 </head>
 <body>
     <header class="topbar">
-        <h1>AgenteKipu</h1>
+        <h1><a href="{% url 'dashboard' %}">AgenteKipu</a></h1>
         <nav>
-            <a href="{% url 'dashboard' %}">Dashboard</a>
-            <a href="{% url 'crear_tarea' %}">Nueva tarea</a>
+            <a href="{% url 'login' %}">Entrar</a>
         </nav>
     </header>
 
-    <main class="container">
-        <h2>Tareas</h2>
-
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li class="{{ message.tags }}">{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-
-        {% if tasks %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Trabajador</th>
-                        <th>Monto</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in tasks %}
-                        <tr>
-                            <td>{{ task.titulo }}</td>
-                            <td>{{ task.worker.nombre }}</td>
-                            <td>{{ task.monto }}</td>
-                            <td><span class="estado estado-{{ task.estado }}">{{ task.get_estado_display }}</span></td>
-                            <td class="acciones">
-                                {% if task.estado == "pendiente" %}
-                                    <form method="post" action="{% url 'marcar_completada' task.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit">Marcar completada</button>
-                                    </form>
-                                {% elif task.estado == "completada" %}
-                                    <form method="post" action="{% url 'marcar_verificada' task.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit">Verificar y pagar</button>
-                                    </form>
-                                {% endif %}
-                                <a href="{% url 'detalle_pago' task.id %}">Ver pago</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No hay tareas todavía. <a href="{% url 'crear_tarea' %}">Crea la primera</a>.</p>
-        {% endif %}
+    <main class="container narrow">
+        <h2>Pago automático cuando un tercero confirma la entrega</h2>
+        <p class="lead">
+            El recolector sube una foto en cada punto. El dueño del local confirma
+            Sí o No con un link único. El agente paga en Stellar testnet solo si
+            esa confirmación es Sí y el conteo de Gemini es consistente con lo
+            reportado. Gemini es un respaldo, no la prueba principal.
+        </p>
+        <p><a href="{% url 'login' %}">Entrar al panel</a></p>
     </main>
 </body>
 </html>

@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ ruta.nombre }} — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
+        <nav>
+            <a href="{% url 'panel_operador' %}">Rutas</a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary">Salir</button>
+            </form>
+        </nav>
+    </header>
+    <main class="container">
+        <h2>{{ ruta.nombre }}</h2>
+        <p class="lead">Recolector: {{ ruta.recolector.nombre }} · {{ ruta.fecha }}. Copiá el link y reenvialo por WhatsApp al dueño del local. No se lo muestres al recolector.</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Local</th>
+                        <th>Estado</th>
+                        <th>Link de confirmación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'detalle_punto_operador' fila.punto.id %}">{{ fila.punto.nombre_local }}</a>
+                            </td>
+                            <td><span class="estado estado-{{ fila.punto.estado }}">{{ fila.punto.get_estado_display }}</span></td>
+                            <td>
+                                {% if fila.url_confirmacion %}
+                                    <input class="link-copiar" type="text" readonly value="{{ fila.url_confirmacion }}" onclick="this.select()">
+                                {% else %}
+                                    <span class="muted">Todavía no hay foto; el link se genera al subirla.</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>

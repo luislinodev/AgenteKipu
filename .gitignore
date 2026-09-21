@@ -1,4 +1,5 @@
 .env
+media/
 __pycache__/
 *.py[cod]
 db.sqlite3
@@ -11,3 +12,4 @@ venv/
 .vscode/
 
 .cursor/
+*.bak

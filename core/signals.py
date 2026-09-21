@@ -1,9 +1,10 @@
 import logging
 
-from django.db.models.signals import post_save, pre_save
+from django.db import IntegrityError
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Payment, Task
+from .models import Payment, Punto
 from .stellar_agent import (
     FondosInsuficientesError,
     HorizonTransactionError,
@@ -13,63 +14,115 @@ from .stellar_agent import (
 logger = logging.getLogger(__name__)
 
 
-@receiver(pre_save, sender=Task)
-def recordar_estado_anterior(sender, instance, **kwargs):
-    if not instance.pk:
-        instance._estado_anterior = None
+class _PagoComoTarea:
+    """Adaptador para procesar_pago() sin cambiar stellar_agent.py."""
+
+    def __init__(self, punto):
+        self.pk = punto.pk
+        self.estado = "verificada"
+        self.monto = punto.monto
+        self.worker = punto.ruta.recolector
+
+
+def _marcar_en_revision(punto, motivo):
+    if punto.estado == Punto.Estado.PAGADO:
         return
-    estado_en_db = (
-        Task.objects.filter(pk=instance.pk).values_list("estado", flat=True).first()
+    if punto.estado == Punto.Estado.EN_REVISION and punto.motivo_no_pago == motivo:
+        return
+    Punto.objects.filter(pk=punto.pk).update(
+        estado=Punto.Estado.EN_REVISION,
+        motivo_no_pago=motivo,
     )
-    instance._estado_anterior = estado_en_db
+    punto.estado = Punto.Estado.EN_REVISION
+    punto.motivo_no_pago = motivo
 
 
-@receiver(post_save, sender=Task)
-def pagar_al_verificar(sender, instance, created, **kwargs):
-    estado_anterior = getattr(instance, "_estado_anterior", None)
-    acaba_de_verificarse = instance.estado == "verificada" and (
-        created or estado_anterior != "verificada"
-    )
-    if not acaba_de_verificarse:
+@receiver(post_save, sender=Punto)
+def intentar_pago_si_corresponde(sender, instance, **kwargs):
+    if instance.estado == Punto.Estado.PAGADO:
         return
 
-    if Payment.objects.filter(task=instance).exists():
+    if Payment.objects.filter(punto=instance).exists():
         logger.warning(
-            "La tarea %s ya tiene un Payment. No se vuelve a llamar a procesar_pago.",
+            "El punto %s ya tiene un Payment. No se vuelve a llamar a procesar_pago.",
+            instance.pk,
+        )
+        return
+
+    if instance.confirmacion == Punto.Confirmacion.NO:
+        _marcar_en_revision(instance, "El punto confirmó No.")
+        return
+
+    if instance.gemini_error:
+        _marcar_en_revision(
+            instance,
+            "Gemini falló; el punto no se paga solo.",
+        )
+        return
+
+    if instance.gemini_consistente is False:
+        _marcar_en_revision(
+            instance,
+            "El conteo de Gemini no es consistente con lo reportado.",
+        )
+        return
+
+    if instance.confirmacion != Punto.Confirmacion.SI:
+        return
+
+    if instance.gemini_consistente is not True:
+        if instance.estado == Punto.Estado.PENDIENTE:
+            Punto.objects.filter(pk=instance.pk).update(
+                estado=Punto.Estado.CONFIRMADO
+            )
+            instance.estado = Punto.Estado.CONFIRMADO
+        return
+
+    try:
+        payment = Payment.objects.create(
+            punto=instance,
+            tx_hash="",
+            monto=instance.monto,
+            estado="pendiente",
+        )
+    except IntegrityError:
+        logger.warning(
+            "El punto %s ya tiene un Payment (carrera en el INSERT). "
+            "No se llama a procesar_pago.",
             instance.pk,
         )
         return
 
     try:
-        tx_hash = procesar_pago(instance)
-        Payment.objects.create(
-            task=instance,
-            tx_hash=tx_hash,
-            monto=instance.monto,
-            estado="completado",
-        )
-        Task.objects.filter(pk=instance.pk).update(estado="pagada")
-        instance.estado = "pagada"
+        tx_hash = procesar_pago(_PagoComoTarea(instance))
+        payment.tx_hash = tx_hash
+        payment.estado = "completado"
+        payment.save(update_fields=["tx_hash", "estado"])
+        Punto.objects.filter(pk=instance.pk).update(estado=Punto.Estado.PAGADO)
+        instance.estado = Punto.Estado.PAGADO
         instance.pago_ok = tx_hash
         logger.info(
-            "Pago enviado para tarea %s. hash=%s monto=%s",
+            "Pago enviado para punto %s. hash=%s monto=%s",
             instance.pk,
             tx_hash,
             instance.monto,
         )
     except (FondosInsuficientesError, HorizonTransactionError) as exc:
-        instance.pago_error = str(exc)
+        payment.delete()
+        _marcar_en_revision(instance, str(exc))
         logger.error(
-            "Pago no enviado. Tarea %s permanece verificada. %s",
+            "Pago no enviado. Punto %s no queda pagado. %s",
             instance.pk,
             exc,
         )
     except Exception as exc:
-        instance.pago_error = (
-            "No se pudo completar el pago automático. Revisa el log de la consola."
+        payment.delete()
+        _marcar_en_revision(
+            instance,
+            "No se pudo completar el pago automático. Revisa el log de la consola.",
         )
         logger.exception(
-            "Error no controlado al pagar la tarea %s: %s",
+            "Error no controlado al pagar el punto %s: %s",
             instance.pk,
             exc,
         )

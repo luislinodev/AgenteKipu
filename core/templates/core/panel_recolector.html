@@ -1,0 +1,69 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi ruta — AgenteKipu</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <h1><a href="{% url 'panel_recolector' %}">AgenteKipu</a></h1>
+        <nav>
+            <span>{{ recolector.nombre }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary">Salir</button>
+            </form>
+        </nav>
+    </header>
+    <main class="container">
+        {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
+        <h2>Puntos de recolección</h2>
+        <p class="lead">Al llegar a cada local, subí la foto de los baldes. El operador gestiona la confirmación del dueño del local.</p>
+
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if puntos %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Local</th>
+                            <th>Ruta</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for punto in puntos %}
+                            <tr>
+                                <td>{{ punto.nombre_local }}</td>
+                                <td>{{ punto.ruta.nombre }}</td>
+                                <td><span class="estado estado-{{ punto.estado }}">{{ punto.get_estado_display }}</span></td>
+                                <td class="acciones">
+                                    {% if punto.foto %}
+                                        <span class="muted">Foto cargada</span>
+                                    {% endif %}
+                                    {% if punto.estado != "pagado" and not punto.confirmacion %}
+                                        <a href="{% url 'subir_foto' punto.id %}">Subir foto</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted">No tenés puntos asignados.</p>
+        {% endif %}
+    </main>
+</body>
+</html>
