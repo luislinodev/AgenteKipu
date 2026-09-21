@@ -14,14 +14,13 @@ from .stellar_agent import (
 logger = logging.getLogger(__name__)
 
 
-class _PagoComoTarea:
-    """Adaptador para procesar_pago() sin cambiar stellar_agent.py."""
+class _OrdenPago:
+    """Datos mínimos para stellar_agent, sin acoplarlo a Django."""
 
     def __init__(self, punto):
         self.pk = punto.pk
-        self.estado = "verificada"
         self.monto = punto.monto
-        self.worker = punto.ruta.recolector
+        self.direccion_stellar = punto.ruta.recolector.direccion_stellar
 
 
 def _marcar_en_revision(punto, motivo):
@@ -94,7 +93,7 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         return
 
     try:
-        tx_hash = procesar_pago(_PagoComoTarea(instance))
+        tx_hash = procesar_pago(_OrdenPago(instance))
         payment.tx_hash = tx_hash
         payment.estado = "completado"
         payment.save(update_fields=["tx_hash", "estado"])

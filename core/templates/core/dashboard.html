@@ -15,13 +15,80 @@
         </nav>
     </header>
 
-    <main class="container narrow">
+    <main class="container">
         <h2>Pago automático cuando un tercero confirma la entrega</h2>
         <p class="lead">
-            El recolector sube una foto en cada punto. El dueño del local confirma
-            Sí o No con un link único. El agente paga en Stellar testnet solo si
-            esa confirmación es Sí y el conteo de Gemini es consistente con lo
-            reportado. Gemini es un respaldo, no la prueba principal.
+            El agente no le cree a quien recorre la ruta. Paga en Stellar testnet
+            solo si el local confirma con un link único y el conteo de la foto
+            no contradice lo reportado. Gemini es un respaldo, no la prueba principal.
+        </p>
+
+        <h3>Ejemplo: entrega a una bodega</h3>
+        <p class="lead">
+            El mismo agente, otro oficio. José arma la ruta. Luis reparte.
+            Doña Rosa confirma. Ahí sale el pago.
+        </p>
+
+        <div class="actor-grid">
+            <section class="card">
+                <h3>Operador</h3>
+                <p><strong>José</strong> — Distribuidora Andina</p>
+                <p class="muted">Crea la ruta del día y paga comisiones. El link de confirmación lo ve solo él.</p>
+            </section>
+            <section class="card">
+                <h3>Recolector</h3>
+                <p><strong>Luis</strong> — repartidor de la ruta</p>
+                <p class="muted">Llega a la bodega, deja 4 bultos y sube la foto. Esa subida dispara el flujo. No ve el link.</p>
+            </section>
+            <section class="card">
+                <h3>Punto</h3>
+                <p><strong>Doña Rosa</strong> — Bodega San Martín</p>
+                <p class="muted">No crea cuenta. Abre el WhatsApp, responde Sí o No: ¿llegaron esos 4 bultos?</p>
+            </section>
+        </div>
+
+        <ol class="example-steps">
+            <li>
+                <strong>Luis reporta la entrega.</strong>
+                En el panel sube la foto de los 4 bultos en la puerta de la bodega.
+            </li>
+            <li>
+                <strong>Gemini cuenta de respaldo.</strong>
+                Si ve 4 bultos (±1), es consistente. Si ve 1, el punto no se paga solo.
+            </li>
+            <li>
+                <strong>José reenvía el link.</strong>
+                El sistema se lo muestra solo a él. Se lo manda a Rosa por WhatsApp.
+                Si Luis lo viera, podría confirmarse a sí mismo.
+            </li>
+            <li>
+                <strong>Rosa confirma “Sí”.</strong>
+                Un segundo clic no cambia la decisión.
+            </li>
+            <li>
+                <strong>El agente paga en Stellar.</strong>
+                Firma solo, sin Freighter. La comisión de Luis sale en testnet
+                y queda el hash. Si Rosa dice No, o Gemini no cuadra, queda en revisión.
+            </li>
+        </ol>
+
+        <section class="card">
+            <h3>Por qué hace falta el tercero</h3>
+            <p>
+                Sin AgenteKipu, José le cree a Luis. Luis puede marcar “entregado”,
+                quedarse con la mercadería y cobrar la comisión igual: él controla
+                el único reporte que llega al dueño.
+            </p>
+            <p>
+                Con AgenteKipu, el pago no sale hasta que Rosa —quien no gana nada
+                mintiendo— confirma la entrega. El hash en Stellar es la prueba
+                de que esa regla se ejecutó, no una planilla que Luis puede editar.
+            </p>
+        </section>
+
+        <p class="muted">
+            El demo en vivo de los paneles usa recolección de aceite usado.
+            El agente es el mismo: confirmación de un tercero, después el pago.
         </p>
         <p><a href="{% url 'login' %}">Entrar al panel</a></p>
     </main>

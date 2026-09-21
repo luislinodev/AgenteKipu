@@ -5,13 +5,6 @@ from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
-    path("tareas/nueva/", views.crear_tarea, name="crear_tarea"),
-    path(
-        "tareas/<int:task_id>/completar/",
-        views.marcar_completada,
-        name="marcar_completada",
-    ),
-    path("tareas/<int:task_id>/pago/", views.detalle_pago, name="detalle_pago"),
     path(
         "confirmar/<str:token>/",
         views.confirmar_punto,

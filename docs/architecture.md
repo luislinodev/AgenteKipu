@@ -50,15 +50,13 @@ flowchart LR
 | **Recolector** | `user` (OneToOne), `nombre`, `direccion_stellar` |
 | **Ruta** | `operador`, `recolector`, `nombre`, `fecha` |
 | **Punto** | `ruta`, `nombre_local`, `monto`, foto, cantidad, Gemini, `token_confirmacion`, `confirmacion` Sí/No, estado (`pendiente` / `confirmado` / `en_revision` / `pagado`), `motivo_no_pago` |
-| **Payment** | OneToOne a **Punto** (no a Task), `tx_hash`, `monto`, `fecha`, estado |
-
-`Worker` y `Task` siguen en el schema como resto del prototipo; **no están en el flujo activo**. El dashboard ya no lista tareas.
+| **Payment** | OneToOne a **Punto**, `tx_hash`, `monto`, `fecha`, estado |
 
 ## Dónde vive cada pieza
 
 | Pieza | Archivo |
 |---|---|
-| Firma y envío Stellar | `core/stellar_agent.py` (sin cambios de contrato: duck-type `estado="verificada"`, `monto`, `worker.direccion_stellar`, `pk`) |
+| Firma y envío Stellar | `core/stellar_agent.py` (duck-type `pk`, `monto`, `direccion_stellar`) |
 | Trigger del pago | `core/signals.py` → `intentar_pago_si_corresponde`; la vista pública lo llama a mano porque `update()` no dispara `post_save` |
 | Gemini | `core/gemini_check.py` |
 | Paneles y confirmación | `core/views.py` |
@@ -84,7 +82,7 @@ flowchart LR
 ## Checklist de lo construido
 
 - [x] Modelos Operador, Recolector, Ruta, Punto, Payment (FK a Punto)
-- [x] Migraciones `0003` / `0004`
+- [x] Migraciones `0003` / `0004` / `0005` (sin Worker/Task)
 - [x] Signal de pago: Sí + Gemini consistente; INSERT `pendiente` antes de Horizon; `delete` si falla
 - [x] Sin botón manual de verificar
 - [x] Subida de foto del Recolector + `gemini_check.py`
@@ -92,7 +90,7 @@ flowchart LR
 - [x] Panel Operador con URL lista para copiar; Recolector sin el link
 - [x] Admin de Punto/Payment acotado al operador (salvo superuser)
 - [x] `motivo_no_pago` distingue No / Gemini / fondos u Horizon
-- [x] `stellar_agent.py` y `scripts/` intactos respecto al prototipo Stellar
+- [x] `stellar_agent.py` paga a `direccion_stellar` del recolector
 
 ## Fuera de alcance (v1)
 
@@ -100,5 +98,4 @@ flowchart LR
 - Sin contrato Soroban
 - Sin GPS ni marketplace de rutas
 - Sin Twilio / WhatsApp Business
-- Worker/Task no forman parte del flujo (schema legado)
 - Alta de rutas/puntos: `/admin/` (el panel del Operador es lectura + copia del link)

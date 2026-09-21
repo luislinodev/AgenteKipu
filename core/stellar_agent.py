@@ -17,12 +17,7 @@ class HorizonTransactionError(RuntimeError):
     pass
 
 
-def procesar_pago(task) -> str:
-    if task.estado != "verificada":
-        raise ValueError(
-            f"La tarea {task.pk} no está verificada (estado actual: {task.estado!r})."
-        )
-
+def procesar_pago(pago) -> str:
     secret = os.environ.get("STELLAR_SECRET_KEY", "").strip()
     if not secret:
         raise ValueError("Falta la variable de entorno STELLAR_SECRET_KEY.")
@@ -36,9 +31,9 @@ def procesar_pago(task) -> str:
     except BaseHorizonError as exc:
         raise HorizonTransactionError(_mensaje_horizon(exc)) from exc
 
-    monto = Decimal(task.monto)
+    monto = Decimal(pago.monto)
     if monto <= 0:
-        raise ValueError(f"El monto de la tarea {task.pk} debe ser mayor que cero.")
+        raise ValueError(f"El monto del punto {pago.pk} debe ser mayor que cero.")
 
     saldo = _saldo_nativo(source_account)
     reserva = _margen_reserva(server, source_account)
@@ -53,8 +48,8 @@ def procesar_pago(task) -> str:
             f"(monto={monto} + reserva={reserva} + fee={fee_xlm})."
         )
 
-    destino = task.worker.direccion_stellar
-    memo = _memo_tarea(task.pk)
+    destino = pago.direccion_stellar
+    memo = _memo_punto(pago.pk)
 
     try:
         transaction = (
@@ -115,8 +110,8 @@ def _margen_reserva(server: Server, account) -> Decimal:
     return (2 + subentries + sponsoring - sponsored) * base_reserve
 
 
-def _memo_tarea(task_id) -> str:
-    memo = f"Pago tarea #{task_id}"
+def _memo_punto(punto_id) -> str:
+    memo = f"Pago punto #{punto_id}"
     encoded = memo.encode("utf-8")
     if len(encoded) <= MEMO_TEXT_MAX_BYTES:
         return memo

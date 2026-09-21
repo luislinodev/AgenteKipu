@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Operador, Payment, Punto, Recolector, Ruta, Task, Worker
+from .models import Operador, Payment, Punto, Recolector, Ruta
 
 admin.site.site_header = "AgenteKipu"
 admin.site.site_title = "AgenteKipu"
@@ -11,19 +11,6 @@ def _acotar_a_operador(request, queryset, lookup):
     if request.user.is_superuser:
         return queryset
     return queryset.filter(**{lookup: request.user})
-
-
-@admin.register(Worker)
-class WorkerAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "direccion_stellar")
-    search_fields = ("nombre", "direccion_stellar")
-
-
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
-    list_display = ("titulo", "worker", "monto", "estado")
-    list_filter = ("estado",)
-    search_fields = ("titulo", "worker__nombre")
 
 
 @admin.register(Operador)

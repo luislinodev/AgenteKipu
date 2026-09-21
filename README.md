@@ -29,6 +29,24 @@ Hay tres actores. El Operador crea la ruta. El Recolector recorre los puntos y s
 
 **Qué no promete:** no es una prueba forense. Es una automatización de una decisión que antes dependía enteramente de la palabra del recolector.
 
+## El mismo mecanismo, otro caso: entrega a una bodega
+
+El aceite usado es el vertical del demo. El agente no es “una app de aceite”: paga cuando un tercero confirma la entrega. El mismo flujo, con otros nombres:
+
+| Rol en AgenteKipu | En este ejemplo |
+|---|---|
+| **Operador** | José, dueño de Distribuidora Andina. Arma la ruta y paga comisiones. |
+| **Recolector** | Luis, repartidor. Deja 4 bultos en la bodega y sube la foto. No ve el link. |
+| **Punto** | Doña Rosa, Bodega San Martín. Confirma Sí/No sin crear cuenta. |
+
+1. Luis sube la foto de los 4 bultos. Eso dispara Gemini (conteo de respaldo) y genera el link.
+2. José copia el link y se lo manda a Rosa por WhatsApp. Si se lo mostráramos a Luis, podría confirmarse a sí mismo.
+3. Rosa responde: ¿llegaron esos 4 bultos a tu local?
+4. Si dice **Sí** y Gemini no contradice el conteo, el agente firma solo y envía la comisión de Luis en Stellar testnet. Queda el hash.
+5. Si dice **No**, o la foto no cuadra, el punto queda **en revisión**. No se paga solo.
+
+Sin el tercero, José le cree a Luis: el repartidor puede marcar “entregado”, quedarse con la mercadería y cobrar igual. Con AgenteKipu, el pago no sale hasta que Rosa confirma. El hash en Stellar es esa regla ejecutada, no una planilla que Luis edita.
+
 ## Arquitectura
 
 Detalle en [`docs/architecture.md`](docs/architecture.md).
