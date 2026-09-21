@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from .gemini_check import chequear_consistencia
 from .models import Operador, Punto, Recolector, Ruta
@@ -18,6 +19,27 @@ def dashboard(request):
 
 def _puede_confirmar(punto):
     return punto.confirmacion is None and punto.estado != Punto.Estado.PAGADO
+
+
+def _puede_subir_foto(punto):
+    # Una sola subida dispara Gemini y el token. Reemplazar la foto
+    # dejaría reintentar el chequeo de consistencia.
+    # No leer token_confirmacion: en el panel del recolector está en defer.
+    if punto.foto:
+        return False
+    if punto.confirmacion or punto.estado == Punto.Estado.PAGADO:
+        return False
+    return True
+
+
+def _texto_gemini(punto):
+    if punto.gemini_error:
+        return "error"
+    if punto.gemini_consistente is True:
+        return f"consistente ({punto.gemini_cantidad})"
+    if punto.gemini_consistente is False:
+        return f"inconsistente ({punto.gemini_cantidad})"
+    return "—"
 
 
 def confirmar_punto(request, token):
@@ -104,6 +126,35 @@ def _url_confirmacion(request, punto):
     )
 
 
+def _json_punto_operador(request, punto):
+    return {
+        "id": punto.pk,
+        "nombre_local": punto.nombre_local,
+        "detalle_url": reverse("detalle_punto_operador", args=[punto.pk]),
+        "estado": punto.estado,
+        "estado_display": punto.get_estado_display(),
+        "cantidad_baldes": punto.cantidad_baldes,
+        "gemini": _texto_gemini(punto),
+        "confirmacion_display": punto.get_confirmacion_display() or "—",
+        "motivo_no_pago": punto.motivo_no_pago or "",
+        "url_confirmacion": _url_confirmacion(request, punto),
+    }
+
+
+def _json_punto_recolector(punto):
+    puede_subir = _puede_subir_foto(punto)
+    return {
+        "id": punto.pk,
+        "nombre_local": punto.nombre_local,
+        "ruta": punto.ruta.nombre,
+        "estado": punto.estado,
+        "estado_display": punto.get_estado_display(),
+        "tiene_foto": bool(punto.foto),
+        "puede_subir": puede_subir,
+        "subir_url": reverse("subir_foto", args=[punto.pk]) if puede_subir else "",
+    }
+
+
 @login_required
 def despues_de_entrar(request):
     if Operador.objects.filter(user=request.user).exists():
@@ -139,7 +190,7 @@ def subir_foto(request, punto_id):
         pk=punto_id,
         ruta__recolector=recolector,
     )
-    if punto.estado == Punto.Estado.PAGADO or punto.confirmacion:
+    if not _puede_subir_foto(punto):
         messages.error(
             request,
             "Este punto ya no admite una foto nueva.",
@@ -220,7 +271,7 @@ def panel_operador(request):
 def detalle_ruta_operador(request, ruta_id):
     operador = _operador_actual(request)
     ruta = get_object_or_404(
-        Ruta.objects.select_related("recolector"),
+        Ruta.objects.select_related("recolector").prefetch_related("puntos"),
         pk=ruta_id,
         operador__user=request.user,
     )
@@ -228,6 +279,7 @@ def detalle_ruta_operador(request, ruta_id):
         {
             "punto": punto,
             "url_confirmacion": _url_confirmacion(request, punto),
+            "texto_gemini": _texto_gemini(punto),
         }
         for punto in ruta.puntos.all()
     ]
@@ -253,5 +305,84 @@ def detalle_punto_operador(request, punto_id):
             "operador": operador,
             "punto": punto,
             "url_confirmacion": _url_confirmacion(request, punto),
+            "texto_gemini": _texto_gemini(punto),
         },
+    )
+
+
+@login_required
+def estado_panel_operador(request):
+    _operador_actual(request)
+    rutas = (
+        Ruta.objects.filter(operador__user=request.user)
+        .select_related("recolector")
+        .prefetch_related("puntos")
+        .order_by("-fecha", "-id")
+    )
+    return JsonResponse(
+        {
+            "rutas": [
+                {
+                    "id": ruta.pk,
+                    "nombre": ruta.nombre,
+                    "fecha": date_format(ruta.fecha),
+                    "recolector": ruta.recolector.nombre,
+                    "puntos": len(ruta.puntos.all()),
+                    "url": reverse("detalle_ruta_operador", args=[ruta.pk]),
+                }
+                for ruta in rutas
+            ]
+        }
+    )
+
+
+@login_required
+def estado_ruta_operador(request, ruta_id):
+    _operador_actual(request)
+    ruta = get_object_or_404(
+        Ruta.objects.prefetch_related("puntos"),
+        pk=ruta_id,
+        operador__user=request.user,
+    )
+    return JsonResponse(
+        {
+            "puntos": [
+                _json_punto_operador(request, punto) for punto in ruta.puntos.all()
+            ]
+        }
+    )
+
+
+@login_required
+def estado_punto_operador(request, punto_id):
+    _operador_actual(request)
+    punto = get_object_or_404(
+        Punto,
+        pk=punto_id,
+        ruta__operador__user=request.user,
+    )
+    return JsonResponse(_json_punto_operador(request, punto))
+
+
+@login_required
+def estado_panel_recolector(request):
+    recolector = _recolector_actual(request)
+    puntos = (
+        Punto.objects.filter(ruta__recolector=recolector)
+        .select_related("ruta")
+        .defer("token_confirmacion")
+        .order_by("ruta__fecha", "id")
+    )
+    return JsonResponse(
+        {"puntos": [_json_punto_recolector(punto) for punto in puntos]}
+    )
+
+
+def estado_confirmar_punto(request, token):
+    punto = get_object_or_404(Punto, token_confirmacion=token)
+    return JsonResponse(
+        {
+            "formulario_abierto": _puede_confirmar(punto),
+            "confirmacion_display": punto.get_confirmacion_display() or "",
+        }
     )

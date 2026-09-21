@@ -7,7 +7,7 @@
     <title>Confirmar recolección — AgenteKipu</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
 </head>
-<body>
+<body{% if formulario_abierto %} data-live-url="{% url 'estado_confirmar_punto' punto.token_confirmacion %}" data-live-kind="confirmar" data-live-interval="3000"{% endif %}>
     <header class="topbar">
         <h1>AgenteKipu</h1>
     </header>
@@ -43,5 +43,8 @@
             <p class="muted">Este punto ya fue respondido. El link ya no puede cambiar la decisión.</p>
         {% endif %}
     </main>
+    {% if formulario_abierto %}
+    <script src="{% static 'core/live.js' %}" defer></script>
+    {% endif %}
 </body>
 </html>

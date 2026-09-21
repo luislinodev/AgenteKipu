@@ -15,8 +15,8 @@ El link de confirmación se muestra **solo al Operador** (`url_confirmacion` en 
 ## Flujo construido
 
 1. El Operador tiene una `Ruta` asignada a un `Recolector` (asignación directa).
-2. El Recolector, en cada `Punto`, sube foto + cantidad. Eso genera `token_confirmacion` (`secrets.token_urlsafe(32)`) y llama a Gemini en el mismo request.
-3. Gemini (`gemini_check.py`, `gemini-3.6-flash`) cuenta baldes; consistente si `|conteo − reportado| ≤ 1`. Si falla, la foto queda y se guarda `gemini_error`. **Eso no cambia el estado ni cierra `/confirmar/`** — Gemini no tiene veto sobre la señal del tercero.
+2. El Recolector, en cada `Punto`, sube foto + cantidad **una sola vez**. Eso genera `token_confirmacion` (`secrets.token_urlsafe(32)`) y llama a Gemini en el mismo request. Reemplazar la foto reintentaría el chequeo de consistencia; la vista no lo permite.
+3. Gemini (`gemini_check.py`, `gemini-3.6-flash`) cuenta baldes; consistente si el conteo es **igual** a lo reportado. Si falla, la foto queda y se guarda `gemini_error`. **Eso no cambia el estado ni cierra `/confirmar/`** — Gemini no tiene veto sobre la señal del tercero.
 4. El Operador copia `/confirmar/<token>/` y lo reenvía por WhatsApp. El Recolector no ve ese URL.
 5. El dueño del local responde Sí/No **aunque Gemini haya fallado o no cuadre**. Un segundo POST no pisa la decisión (`update()` acotado a `confirmacion is None` y no `pagado`; 0 filas → relectura).
 6. Recién entonces el agente combina ambas señales y paga solo si confirmó Sí **y** Gemini es consistente:
@@ -67,6 +67,7 @@ flowchart LR
 - Recolector: queryset `ruta__recolector=…`. 404 si el punto no es suyo. Sin token en el template.
 - Operador: queryset `ruta__operador__user=request.user` (o equivalente). 404 si la ruta/punto es de otro.
 - Confirmación pública: autorización = token; POST solo si `confirmacion is None` y el punto no está `pagado`. Gemini no cierra el endpoint.
+- Los paneles `/operador/` y `/recolector/` (y `/confirmar/` mientras el formulario está abierto) consultan un JSON de estado cada 3 s. Sin Channels ni WebSockets. El JSON del recolector no incluye el token.
 - Admin `Punto` y `Payment`: no superuser → mismo recorte por operador. Superuser ve todo.
 
 ## Stack (como está)
@@ -86,7 +87,7 @@ flowchart LR
 - [x] Migraciones `0003` / `0004` / `0005` (sin Worker/Task)
 - [x] Signal de pago: combina Sí + Gemini consistente **después** de la confirmación; INSERT `pendiente` antes de Horizon; `delete` si falla
 - [x] Sin botón manual de verificar (el panel del Operador es lectura + copia del link)
-- [x] Subida de foto del Recolector; `views.subir_foto` llama a `gemini_check.py`
+- [x] Subida de foto del Recolector (una sola vez por punto); `views.subir_foto` llama a `gemini_check.py`
 - [x] Token `secrets.token_urlsafe(32)` y página `/confirmar/<token>/` abierta aunque Gemini falle
 - [x] Panel Operador con URL lista para copiar; Recolector sin el link
 - [x] Admin de Punto/Payment acotado al operador (salvo superuser)

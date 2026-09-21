@@ -69,6 +69,10 @@ nav form {
     padding: 1.5rem;
 }
 
+.container.wide {
+    max-width: 1120px;
+}
+
 .container.narrow {
     max-width: 640px;
 }
@@ -248,4 +252,13 @@ fieldset {
     padding: 0.45rem 0.5rem;
     border: 1px solid var(--line);
     background: #fff;
+}
+
+@keyframes live-flash {
+    from { background: #efe6c8; }
+    to { background: transparent; }
+}
+
+.live-flash {
+    animation: live-flash 0.9s ease-out;
 }

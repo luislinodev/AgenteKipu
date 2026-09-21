@@ -2,7 +2,7 @@
 
 **Stellar Odyssey Perú · Track: AI Agents & Automated Workflows**
 
-Un agente que paga en Stellar testnet **solo cuando un tercero independiente del recolector confirma la entrega** — nunca por el reporte del propio recolector.
+Un agente que paga en Stellar testnet **solo cuando un tercero independiente del recolector confirma la entrega** — nunca por el reporte del propio recolector. Aceite usado es el piloto de esta versión: el mecanismo de pago —confirmación de un tercero, no del reporte propio— no depende del material; el chequeo de foto con Gemini sí está calibrado para baldes de aceite, y eso se explica más abajo.
 
 Aplicado a la recolección de aceite usado: el fraude ocurre porque el recolector controla toda la información que le llega al dueño del negocio. El agente no "decide"; aplica dos reglas verificables: confirmación del punto de recolección + chequeo de consistencia de una foto.
 
@@ -14,7 +14,7 @@ Luis compraba más baldes de los que reportaba, o desviaba parte de lo recolecta
 
 Se descubrió por casualidad: un día Luis salió a la ruta con un asistente nuevo, pero en vez de recolectar se fue a dormir a la casa de su suegra y cargó desde ahí los baldes ya escondidos. El asistente, por miedo a verse involucrado en algo ilegal, le contó todo a José.
 
-El sistema debía haber hecho innecesaria esa casualidad: el pago no puede depender de la palabra de quien tiene el incentivo — en este caso, un bono por volumen — de mentir.
+El sistema debía haber hecho innecesaria esa casualidad: el pago no puede depender de la palabra de quien tiene el incentivo de mentir.
 
 ## La solución
 
@@ -23,21 +23,40 @@ Hay tres actores. El **Operador** crea la ruta. El **Recolector** la recorre y s
 1. El **Operador** crea una `Ruta`, la asigna a un recolector y define los `Puntos` (local, monto en XLM) — hoy esto se hace desde `/admin/`, por decisión de scope, no porque falte terminar: construir una UI propia de creación de rutas no suma al mecanismo anti-fraude, así que no se justifica el tiempo de ingeniería. El panel `/operador/` es para **consultar** el historial y copiar el link de confirmación, no para crear rutas.
 2. El **Recolector**, desde `/recolector/`, sube en cada punto una foto de los baldes recogidos junto con la cantidad que él reporta. Esa subida dispara el resto del flujo — no hay GPS: es falsificable desde el propio navegador y no resuelve el problema real.
 3. Al subir la foto, ocurren dos cosas:
-   - La foto va a la **API de Gemini** con un prompt acotado (contar baldes). Es un **chequeo de consistencia de respaldo**, no la prueba principal — una foto se puede preparar de antemano y no se presenta como prueba infalible. Se considera consistente si `|conteo de Gemini − cantidad reportada| ≤ 1`. Gemini **no** cierra el link de confirmación ni pone el punto en revisión por sí solo: si falla o la diferencia es mayor, el dato queda guardado y el pago no saldrá solo *después* de que el local responda.
+   - La foto va a la **API de Gemini** con un prompt acotado (contar baldes). Es un **chequeo de consistencia de respaldo**, no la prueba principal — una foto se puede preparar de antemano y no se presenta como prueba infalible. Se considera consistente si el conteo de Gemini es **igual** a la cantidad reportada. Gemini **no** cierra el link de confirmación ni pone el punto en revisión por sí solo: si falla o no coincide, el dato queda guardado y el pago no saldrá solo *después* de que el local responda.
    - El sistema genera un token secreto y un link único de confirmación (`/confirmar/<token>/`) y se lo muestra **solo al Operador**. El Operador se lo reenvía al Proveedor de punto por su WhatsApp — no hay integración con Twilio ni envío automático. Si el link se le mostrara al Recolector, podría confirmarse a sí mismo y el mecanismo colapsaría — es el hueco que detectamos y cerramos en el diseño.
 4. El **Proveedor de punto** abre el link, sin cuenta, y responde Sí/No: ¿se recogieron esos baldes en tu local? Puede responder **aunque Gemini haya fallado o no cuadre**. **La respuesta es de una sola vez** — un segundo intento sobre el mismo token no cambia la decisión ya registrada. Esto cierra un vector de manipulación: nadie puede reabrir la confirmación para revertir un "No" después de que el recolector hable con el dueño del punto.
 5. Recién entonces `signals.py` combina las dos señales y, si ambas cumplen, llama a `stellar_agent.py` para firmar y enviar el pago: (a) el punto confirmó "Sí" y (b) Gemini marcó consistente. Si el punto dice "No", Gemini no cuadra, faltan fondos o Horizon rechaza la transacción, el punto queda **en revisión** con un `motivo_no_pago` registrado — no se paga solo. El panel `/operador/` muestra ese motivo; no tiene botón para pagar ni desbloquear. Cualquier decisión posterior es fuera del agente (p. ej. `/admin/`). Un pago ya enviado en Stellar no lo puede revertir nadie, ni el propio equipo.
 6. El historial se parte en dos modelos: **Punto** guarda la foto, la respuesta de Gemini, la confirmación del local y `motivo_no_pago`; **Payment** guarda el hash de la transacción, el monto, la fecha y el estado del pago. El panel `/operador/` consulta estado, Gemini, confirmación y motivo; la foto y el hash quedan en media / `/admin/`.
 
-**Qué sí cubre:** que el recolector desvíe volumen o infle un reporte para alcanzar un umbral de bono, sin que quede registrado en ningún punto real — porque el pago depende de una confirmación que él no controla.
+**Qué sí cubre:** que el recolector reporte como recogido algo que el punto de origen no confirma — cada comisión depende de que ese local específico confirme esa recolección específica, no del reporte del recolector.
 
-**Qué no promete:** no es una prueba forense. Es la automatización de una decisión que antes dependía enteramente de la palabra del recolector.
+**Qué no cubre (todavía):** el mecanismo de bono por volumen acumulado que ocurrió en el caso real. Hay dos mentiras separadas en el caso original: (1) reportar como recogido algo que no se recogió en un punto real, y (2) acumular volumen de varios puntos para cruzar un umbral de bono. AgenteKipu, en esta versión, cierra la primera — no la segunda: hoy cada punto paga un monto fijo definido por el Operador, no un cálculo por volumen ni un umbral de bono. Un recolector que reparte volumen desviado entre puntos reales pequeños, sin cruzar ningún umbral, no dispara ninguna alerta en esta versión. Ver "Siguiente paso: bono por volumen" más abajo para el diseño pensado (no implementado) de esta regla.
+
+**Qué no promete:** no es una prueba forense. Es la automatización de una decisión que antes dependía enteramente de la palabra del recolector, aplicada a nivel de cada punto individual.
 
 ## Por qué esto no es "otra app de logística"
 
-Confirmación por un tercero no es una idea nueva — es el patrón de cualquier sistema de custodia (escrow) desde hace siglos, y es lo que hacen internamente muchas apps de delivery. Lo que sí distingue a AgenteKipu es lo que pasa *después* de la confirmación: el pago se ejecuta de forma autónoma e irreversible en Stellar, sin que un backend centralizado — ni siquiera el propio equipo — pueda revertirlo o editarlo en silencio una vez que se cumplen las condiciones. El Proveedor de punto actúa como un oráculo humano mínimo; la transacción en Stellar es la regla ejecutada, no una planilla que alguien puede modificar después.
+Confirmación por un tercero no es una idea nueva — es el patrón de cualquier sistema de custodia (escrow) desde hace siglos. Lo que no es trivial es a quién convertís en ese tercero y qué le exigís para participar. La mayoría de sistemas de escrow o de oráculos on-chain asumen una contraparte con cuenta, wallet o al menos una app instalada. El Proveedor de punto de AgenteKipu es el dueño de un restaurante o taller informal que nunca usó cripto y no va a instalar nada: confirma con un link, sin cuenta, una sola vez. Diseñar el oráculo para gente sin infraestructura digital previa es el problema de ingeniería real, no la idea de "que confirme un tercero".
+
+La irreversibilidad tampoco vale por sí sola — valdría poco si solo significara "nadie con acceso a la base de datos puede tocar esta fila", porque eso también se logra con buenos controles de acceso en un backend tradicional. Vale porque es **verificable por fuera del propio sistema**: cualquiera puede confirmar un pago en `stellar.expert` sin confiar en la palabra del equipo. El fraude original de Luis ocurrió porque toda la información dependía de una sola parte con incentivo para mentir. AgenteKipu no solo le quita esa palabra al recolector — le quita el mismo privilegio de "confiar en mi versión de los hechos" al propio operador y al propio equipo del proyecto, una vez que el pago sale.
+
+Y el agente no actúa con una sola señal débil: solo dispara la ejecución autónoma cuando coinciden una señal probabilística (Gemini, que puede equivocarse) y una determinística (el sí/no humano, de una sola vez, sin posibilidad de reabrir). Esa combinación — no conectar una API de IA sola — es la decisión de diseño de agente que importa acá.
+
+**La brecha que este diseño no cierra todavía:** el link de confirmación pasa del sistema al Operador, y del Operador al Proveedor de punto, por WhatsApp manual. Eso depende de que el Operador reenvíe el link al contacto correcto y no se confirme a sí mismo haciéndose pasar por el punto. AgenteKipu cierra el trust gap del recolector — no cierra por completo el del Operador. Es la misma clase de problema que resolvimos para Luis, un nivel más arriba en la cadena, y quedó fuera de esta versión.
 
 **Alcance:** el aceite usado es el caso piloto, con un fraude real y documentado detrás. La misma estructura — recolector que cobra por volumen autorreportado, de puntos de origen informales sin sistema propio — aplica en principio a otras redes de acopio (reciclables, pequeños productores), pero este proyecto no tiene evidencia de fraude documentada fuera del caso del aceite, y no se presenta como una solución genérica de logística.
+
+## Siguiente paso: bono por volumen (diseño, no implementado)
+
+El bono por volumen acumulado — el mecanismo que originó el fraude real — no está implementado en esta versión, por decisión deliberada y no por falta de tiempo: automatizarlo mal es más riesgoso que no automatizarlo. La razón no es solo esfuerzo de ingeniería; es que el bono es, en sí mismo, la estructura de incentivo que produjo el problema, y una implementación apurada corre el riesgo de reconstruir el mismo hueco con otro nombre.
+
+El diseño pensado, para una futura versión:
+
+- **El umbral se calcula sobre volumen confirmado por el punto, no sobre lo reportado por el Recolector.** Si se calculara sobre lo reportado, se reintroduce exactamente el hueco que este sistema cierra.
+- **Falta decidir el alcance del umbral** — ¿por ruta, por semana, por recolector histórico? — y esa decisión no es un detalle de implementación: cambia qué patrones de fraude quedan cubiertos.
+- **El vector que este diseño no cierra por sí solo:** un recolector puede repartir volumen desviado entre varios puntos reales, cada uno por debajo del umbral, sin disparar ninguna alerta. Un umbral mal diseñado no resuelve esto — solo cambia el número mágico de "20 baldes en un viaje" a "20 baldes acumulados", que sigue siendo manipulable de la misma forma.
+- Cerrar ese vector requeriría una señal adicional (p. ej. detectar patrones de volumen sostenidamente cercano al umbral, entre varios puntos del mismo recolector) que este proyecto no llegó a diseñar ni a evaluar.
 
 ## Arquitectura
 
@@ -47,7 +66,7 @@ Detalle en [`docs/architecture.md`](docs/architecture.md).
 flowchart LR
     A[Operador crea Ruta y Puntos<br/>vía /admin/] --> B[(Base de datos<br/>Django ORM)]
     C[Recolector sube foto + cantidad<br/>en /recolector/] --> B
-    C --> D[API Gemini:<br/>chequeo de consistencia<br/>|conteo − reportado| ≤ 1]
+    C --> D[API Gemini:<br/>chequeo de consistencia<br/>conteo = reportado]
     D --> B
     C --> E[Sistema genera token y link único<br/>/confirmar/token/ → se lo muestra al Operador en /operador/]
     E --> F[Operador reenvía el link<br/>al Proveedor de punto por WhatsApp]
@@ -64,9 +83,9 @@ La construcción, firma y envío de la transacción viven en `core/stellar_agent
 
 ## Uso de la API de Gemini
 
-Este proyecto usa la **API de Gemini** (Google AI Studio) como **chequeo de consistencia de la foto** del punto de recolección: un conteo acotado que se compara con lo reportado por el Recolector. Se considera consistente si `|conteo de Gemini − cantidad reportada| ≤ 1`.
+Este proyecto usa la **API de Gemini** (Google AI Studio) como **chequeo de consistencia de la foto** del punto de recolección: un conteo acotado que se compara con lo reportado por el Recolector. Se considera consistente si el conteo de Gemini es **igual** a la cantidad reportada.
 
-Gemini **no** es la señal que dispara el pago, **no** cierra `/confirmar/<token>/` y **no** se presenta como detector de fraude. La señal decisiva es la confirmación Sí/No, de una sola vez, del Proveedor de punto. Si Gemini falla o el conteo no cuadra con ese margen, el local igual puede responder; el agente combina ambas señales al decidir el pago y, si no cierran, el punto queda en revisión y el pago no sale solo.
+Gemini **no** es la señal que dispara el pago, **no** cierra `/confirmar/<token>/` y **no** se presenta como detector de fraude. La señal decisiva es la confirmación Sí/No, de una sola vez, del Proveedor de punto. Si Gemini falla o el conteo no coincide, el local igual puede responder; el agente combina ambas señales al decidir el pago y, si no cierran, el punto queda en revisión y el pago no sale solo.
 
 ## Stack
 

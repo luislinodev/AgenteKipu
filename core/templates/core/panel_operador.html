@@ -21,9 +21,9 @@
     </header>
     <main class="container">
         <h2>Rutas</h2>
-        <p class="lead">Abrí una ruta para copiar el link de confirmación y reenviarlo por WhatsApp al dueño de cada local.</p>
+        <p class="lead">Abrí una ruta para consultar estado, Gemini, confirmación y motivo, y copiar el link de confirmación. Reenvialo por WhatsApp al dueño de cada local. La foto y el hash quedan en el admin; este panel no paga ni desbloquea.</p>
         {% if rutas %}
-            <div class="table-wrap">
+            <div class="table-wrap" data-live-url="{% url 'estado_panel_operador' %}" data-live-kind="panel-operador" data-live-interval="3000">
                 <table>
                     <thead>
                         <tr>
@@ -35,11 +35,11 @@
                     </thead>
                     <tbody>
                         {% for ruta in rutas %}
-                            <tr>
+                            <tr data-ruta-id="{{ ruta.id }}">
                                 <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.nombre }}</a></td>
-                                <td>{{ ruta.fecha }}</td>
-                                <td>{{ ruta.recolector.nombre }}</td>
-                                <td>{{ ruta.puntos.all|length }}</td>
+                                <td data-live="fecha">{{ ruta.fecha }}</td>
+                                <td data-live="recolector">{{ ruta.recolector.nombre }}</td>
+                                <td data-live="puntos">{{ ruta.puntos.all|length }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -49,5 +49,8 @@
             <p class="muted">No hay rutas todavía. Crealas desde el admin.</p>
         {% endif %}
     </main>
+    {% if rutas %}
+    <script src="{% static 'core/live.js' %}" defer></script>
+    {% endif %}
 </body>
 </html>

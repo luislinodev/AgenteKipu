@@ -13,7 +13,7 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 MODELO_GEMINI = "gemini-3.6-flash"
-TOLERANCIA_BALDES = 1
+TOLERANCIA_BALDES = 0
 TIMEOUT_MS = 15_000
 PROMPT = (
     "Cuenta cuántos baldes o bidones ves en esta imagen. "

@@ -26,7 +26,7 @@
         {% endif %}
 
         {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
-        <p class="lead">Indicá cuántos baldes recogiste y subí la foto. El link de confirmación se le muestra al operador, no acá.</p>
+        <p class="lead">Indicá cuántos baldes recogiste y subí la foto. Esa subida es una sola vez: dispara Gemini y el link de confirmación, que se le muestra al operador, no acá.</p>
 
         <form method="post" enctype="multipart/form-data" class="form">
             {% csrf_token %}

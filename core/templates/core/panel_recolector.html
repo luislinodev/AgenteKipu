@@ -21,7 +21,7 @@
     <main class="container">
         {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
         <h2>Puntos de recolección</h2>
-        <p class="lead">Al llegar a cada local, subí la foto de los baldes. El operador gestiona la confirmación del dueño del local.</p>
+        <p class="lead">Al llegar a cada local, subí la foto de los baldes. Esa subida es una sola vez: dispara el chequeo de Gemini y el link de confirmación. El operador se lo reenvía al dueño del local.</p>
 
         {% if messages %}
             <ul class="messages">
@@ -32,7 +32,7 @@
         {% endif %}
 
         {% if puntos %}
-            <div class="table-wrap">
+            <div class="table-wrap" data-live-url="{% url 'estado_panel_recolector' %}" data-live-kind="panel-recolector" data-live-interval="3000">
                 <table>
                     <thead>
                         <tr>
@@ -44,15 +44,14 @@
                     </thead>
                     <tbody>
                         {% for punto in puntos %}
-                            <tr>
+                            <tr data-punto-id="{{ punto.id }}">
                                 <td>{{ punto.nombre_local }}</td>
                                 <td>{{ punto.ruta.nombre }}</td>
-                                <td><span class="estado estado-{{ punto.estado }}">{{ punto.get_estado_display }}</span></td>
-                                <td class="acciones">
+                                <td><span class="estado estado-{{ punto.estado }}" data-live="estado">{{ punto.get_estado_display }}</span></td>
+                                <td class="acciones" data-live="acciones">
                                     {% if punto.foto %}
                                         <span class="muted">Foto cargada</span>
-                                    {% endif %}
-                                    {% if punto.estado != "pagado" and not punto.confirmacion %}
+                                    {% elif punto.estado != "pagado" and not punto.confirmacion %}
                                         <a href="{% url 'subir_foto' punto.id %}">Subir foto</a>
                                     {% endif %}
                                 </td>
@@ -65,5 +64,8 @@
             <p class="muted">No tenés puntos asignados.</p>
         {% endif %}
     </main>
+    {% if puntos %}
+    <script src="{% static 'core/live.js' %}" defer></script>
+    {% endif %}
 </body>
 </html>
