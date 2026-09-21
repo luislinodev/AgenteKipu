@@ -64,19 +64,19 @@ Detalle en [`docs/architecture.md`](docs/architecture.md).
 
 ```mermaid
 flowchart LR
-    A[Operador crea Puntos (catálogo)<br/>y Rutas (visita) vía /admin/] --> B[(Base de datos<br/>Django ORM)]
-    C[Recolector sube foto + cantidad<br/>en /recolector/] --> B
-    C --> D[API Gemini:<br/>chequeo de consistencia<br/>conteo = reportado]
+    A["Operador crea Puntos (catálogo)<br/>y Rutas (visita) vía /admin/"] --> B[("(Base de datos<br/>Django ORM)")]
+    C["Recolector sube foto + cantidad<br/>en /recolector/"] --> B
+    C --> D["API Gemini:<br/>chequeo de consistencia<br/>conteo = reportado"]
     D --> B
-    C --> E[Sistema genera token y link único<br/>/confirmar/token/ → se lo muestra al Operador en /operador/]
-    E --> F[Operador reenvía el link<br/>al Proveedor de punto por WhatsApp]
-    F --> G[Punto confirma Sí/No una sola vez<br/>sin necesidad de cuenta]
+    C --> E["Sistema genera token y link único<br/>/confirmar/token/ → se lo muestra al Operador en /operador/"]
+    E --> F["Operador reenvía el link<br/>al Proveedor de punto por WhatsApp"]
+    F --> G["Punto confirma Sí/No una sola vez<br/>sin necesidad de cuenta"]
     G --> B
-    B --> H{Agente revisa:<br/>¿confirmó el Punto?<br/>¿Gemini es consistente?}
-    H -- Sí --> I[stellar-sdk Python:<br/>construye y firma TX]
-    I --> J[Horizon Testnet Stellar]
-    J --> K[Pago registrado<br/>en Payment + hash TX]
-    H -- No --> L[Queda en revisión<br/>con motivo_no_pago]
+    B --> H{"Agente revisa:<br/>¿confirmó el Punto?<br/>¿Gemini es consistente?"}
+    H -- Sí --> I["stellar-sdk Python:<br/>construye y firma TX"]
+    I --> J["Horizon Testnet Stellar"]
+    J --> K["Pago registrado<br/>en Payment + hash TX"]
+    H -- No --> L["Queda en revisión<br/>con motivo_no_pago"]
 ```
 
 La construcción, firma y envío de la transacción viven en `core/stellar_agent.py` (no valida confirmación ni Gemini: recibe monto y destino). Las reglas de si corresponde pagar viven en `core/signals.py`. El chequeo de Gemini vive en `core/gemini_check.py`; la vista `subir_foto` lo llama en el mismo request de la subida. El agente firma con una clave de servidor en `.env`; no usa Freighter — el punto del track es que el agente firma solo, sin intervención humana.
