@@ -1,50 +1,48 @@
+{% extends "core/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirmar recolección — AgenteKipu</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}">
-</head>
-<body{% if formulario_abierto %} data-live-url="{% url 'estado_confirmar_punto' ruta.token_confirmacion %}" data-live-kind="confirmar" data-live-interval="3000"{% endif %}>
-    <header class="topbar">
-        <h1>AgenteKipu</h1>
-    </header>
 
-    <main class="container narrow">
-        <h2>Confirmación de recolección</h2>
-        <p class="lead">No hace falta crear una cuenta. Respondé si se retiraron esos baldes en tu local.</p>
+{% block title %}Confirmar recolección — AgenteKipu{% endblock %}
 
-        <section class="card">
-            <p><strong>Local:</strong> {{ ruta.punto.nombre }}</p>
-            <p><strong>Baldes reportados:</strong> {{ ruta.cantidad_baldes|default:"—" }}</p>
-            {% if ruta.confirmacion %}
-                <p><strong>Tu respuesta:</strong> {{ ruta.get_confirmacion_display }}</p>
-            {% endif %}
-        </section>
+{% block body_attrs %}{% if formulario_abierto %} data-live-url="{% url 'estado_confirmar_punto' ruta.token_confirmacion %}" data-live-kind="confirmar" data-live-interval="3000"{% endif %}{% endblock %}
 
-        {% if error %}
-            <p class="messages"><span class="error">{{ error }}</span></p>
+{% block nav %}{% endblock %}
+
+{% block container_class %}narrow{% endblock %}
+
+{% block content %}
+    <h2>Confirmación de recolección</h2>
+    <p class="lead">No hace falta crear una cuenta. Respondé si se retiraron esos baldes en tu local.</p>
+
+    <section class="card">
+        <p><strong>Local:</strong> {{ ruta.punto.nombre }}</p>
+        <p><strong>Baldes reportados:</strong> {{ ruta.cantidad_baldes|default:"—" }}</p>
+        {% if ruta.confirmacion %}
+            <p><strong>Tu respuesta:</strong> {{ ruta.get_confirmacion_display }}</p>
         {% endif %}
+    </section>
 
-        {% if formulario_abierto %}
-            <p>¿Confirmas que se recogieron {% if ruta.cantidad_baldes %}{{ ruta.cantidad_baldes }}{% else %}estos{% endif %} baldes de aceite en tu local?</p>
-            <form method="post" class="form wide">
-                {% csrf_token %}
-                <div class="confirm-actions">
-                    <button type="submit" name="confirmacion" value="si">Sí, se recogieron</button>
-                    <button type="submit" name="confirmacion" value="no" class="danger">No</button>
-                </div>
-            </form>
-        {% elif respuesta_registrada %}
-            <p>Registramos tu respuesta. Gracias.</p>
-        {% else %}
-            <p class="muted">Este punto ya fue respondido. El link ya no puede cambiar la decisión.</p>
-        {% endif %}
-    </main>
-    {% if formulario_abierto %}
-    <script src="{% static 'core/live.js' %}" defer></script>
+    {% if error %}
+        <ul class="messages"><li class="error">{{ error }}</li></ul>
     {% endif %}
-</body>
-</html>
+
+    {% if formulario_abierto %}
+        <p>¿Confirmas que se recogieron {% if ruta.cantidad_baldes %}{{ ruta.cantidad_baldes }}{% else %}estos{% endif %} baldes de aceite en tu local?</p>
+        <form method="post" class="form wide">
+            {% csrf_token %}
+            <div class="confirm-actions">
+                <button type="submit" name="confirmacion" value="si">Sí, se recogieron</button>
+                <button type="submit" name="confirmacion" value="no" class="danger">No</button>
+            </div>
+        </form>
+    {% elif respuesta_registrada %}
+        <p>Registramos tu respuesta. Gracias.</p>
+    {% else %}
+        <p class="muted">Este punto ya fue respondido. El link ya no puede cambiar la decisión.</p>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if formulario_abierto %}
+<script src="{% static 'core/live.js' %}" defer></script>
+{% endif %}
+{% endblock %}

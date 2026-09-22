@@ -1,59 +1,55 @@
+{% extends "core/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Rutas — AgenteKipu</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}">
-</head>
-<body>
-    <header class="topbar">
-        <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
-        <nav>
-            <span>{{ operador.nombre }}</span>
-            <a href="{% url 'panel_operador' %}">Rutas</a>
-            <a href="{% url 'pagos_operador' %}">Pagos</a>
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit" class="secondary">Salir</button>
-            </form>
-        </nav>
-    </header>
-    <main class="container">
-        <h2>Rutas</h2>
-        <p class="lead">Cada ruta es un local, un recolector, un monto y una fecha. Abrí una para ver la foto y copiar el link de confirmación. Los pagos enviados están en Pagos. Este panel no paga ni desbloquea.</p>
-        {% if rutas %}
-            <div class="table-wrap" data-live-url="{% url 'estado_panel_operador' %}" data-live-kind="panel-operador" data-live-interval="3000">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Local</th>
-                            <th>Fecha</th>
-                            <th>Recolector</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ruta in rutas %}
-                            <tr data-ruta-id="{{ ruta.id }}">
-                                <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.punto.nombre }}</a></td>
-                                <td data-live="fecha">{{ ruta.fecha }}</td>
-                                <td data-live="recolector">{{ ruta.recolector.nombre }}</td>
-                                <td>
-                                    <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted">No hay rutas todavía. Primero cargá los locales en Puntos y después creá la ruta en el admin.</p>
-        {% endif %}
-    </main>
+
+{% block title %}Rutas — AgenteKipu{% endblock %}
+
+{% block nav %}
+<nav>
+    <span class="nav-actor">{{ operador.nombre }}</span>
+    <a href="{% url 'panel_operador' %}" class="btn btn-ghost">Rutas</a>
+    <a href="{% url 'pagos_operador' %}" class="btn btn-ghost">Pagos</a>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="secondary">Salir</button>
+    </form>
+</nav>
+{% endblock %}
+
+{% block content %}
+    <h2>Rutas</h2>
+    <p class="lead">Cada ruta es un local, un recolector, un monto y una fecha. Abrí una para ver la foto y copiar el link de confirmación. Los pagos enviados están en Pagos. Este panel no paga ni desbloquea.</p>
     {% if rutas %}
-    <script src="{% static 'core/live.js' %}" defer></script>
+        <div class="table-wrap" data-live-url="{% url 'estado_panel_operador' %}" data-live-kind="panel-operador" data-live-interval="3000">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Local</th>
+                        <th>Fecha</th>
+                        <th>Recolector</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ruta in rutas %}
+                        <tr data-ruta-id="{{ ruta.id }}">
+                            <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.punto.nombre }}</a></td>
+                            <td data-live="fecha">{{ ruta.fecha }}</td>
+                            <td data-live="recolector">{{ ruta.recolector.nombre }}</td>
+                            <td>
+                                <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted">No hay rutas todavía. Primero cargá los locales en Puntos y después creá la ruta en el admin.</p>
     {% endif %}
-</body>
-</html>
+{% endblock %}
+
+{% block scripts %}
+{% if rutas %}
+<script src="{% static 'core/live.js' %}" defer></script>
+{% endif %}
+{% endblock %}
