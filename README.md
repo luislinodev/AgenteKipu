@@ -143,6 +143,20 @@ Tres pagos completados de punta a punta (foto → Gemini → confirmación del p
 - Scripts de testnet: crear/fondear wallet con Friendbot y verificar un hash.
 - Flujo de punta a punta funcionando: foto → Gemini → link de confirmación → confirmación del punto → pago automático — con tres transacciones completadas en Horizon Testnet (ver Evidencia arriba).
 
+## Código de terceros
+
+El proyecto no parte de un fork ni de un starter kit. El código de la app es propio. Las únicas dependencias de terceros son las de `requirements.txt`; no se copia código de ellas, se instalan como librerías.
+
+| Paquete | Versión | Licencia | Uso |
+|---|---|---|---|
+| [Django](https://www.djangoproject.com/) | 6.1.1 | BSD-3-Clause | Backend, ORM, admin, templates |
+| [stellar-sdk](https://github.com/StellarCN/py-stellar-base) | 16.1.0 | Apache-2.0 | Firma y envío de pagos nativos a Horizon |
+| [python-dotenv](https://github.com/theskumar/python-dotenv) | 1.2.3 | BSD-3-Clause | Carga de `.env` |
+| [Pillow](https://python-pillow.github.io/) | 11.3.0 | HPND | Subida y manejo de fotos (`ImageField`) |
+| [google-genai](https://github.com/googleapis/python-genai) | 2.24.0 | Apache-2.0 | Chequeo de consistencia de la foto (Gemini) |
+
+Sus licencias permiten el uso y la redistribución bajo la MIT de este repositorio. Las dependencias transitivas viajan con cada paquete al instalar.
+
 ## Licencia
 
 [MIT](LICENSE)
