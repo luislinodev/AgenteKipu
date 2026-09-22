@@ -1,18 +1,10 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static core_extras %}
 
 {% block title %}Mi ruta — AgenteKipu{% endblock %}
 
 {% block nav %}
-<nav>
-    <span class="nav-actor">{{ recolector.nombre }}</span>
-    <a href="{% url 'panel_recolector' %}" class="btn btn-ghost">Rutas</a>
-    <a href="{% url 'pagos_recolector' %}" class="btn btn-ghost">Pagos</a>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="secondary">Salir</button>
-    </form>
-</nav>
+{% include "core/nav_panel.html" with actor=recolector.nombre rol="recolector" %}
 {% endblock %}
 
 {% block content %}
@@ -34,7 +26,8 @@
                 <thead>
                     <tr>
                         <th>Local</th>
-                        <th>Fecha</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
                         <th>Estado</th>
                         <th></th>
                     </tr>
@@ -42,9 +35,10 @@
                 <tbody>
                     {% for ruta in rutas %}
                         <tr data-ruta-id="{{ ruta.id }}">
-                            <td>{{ ruta.punto.nombre }}</td>
-                            <td>{{ ruta.fecha }}</td>
-                            <td><span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></td>
+                            <td data-label="Local">{{ ruta.punto.nombre }}</td>
+                            <td data-label="Inicio" data-live="inicio">{{ ruta.creado_en|fecha_hora_display }}</td>
+                            <td data-label="Fin" data-live="fin">{{ ruta.procesado_en|fecha_hora_display }}</td>
+                            <td data-label="Estado"><span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></td>
                             <td class="acciones" data-live="acciones">
                                 {% if ruta.foto %}
                                     <span class="muted">Foto cargada</span>

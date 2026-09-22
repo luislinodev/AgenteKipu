@@ -19,8 +19,28 @@ def _acotar_a_operador(request, queryset, lookup):
 
 @admin.register(Operador)
 class OperadorAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "user")
-    search_fields = ("nombre", "user__username")
+    list_display = ("nombre", "user", "wallet", "direccion_stellar")
+    search_fields = ("nombre", "user__username", "direccion_stellar")
+
+    def get_fields(self, request, obj=None):
+        if obj:
+            return ("user", "nombre", "direccion_stellar", "wallet")
+        return ("user", "nombre", "direccion_stellar")
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ("wallet",)
+        return ()
+
+    @admin.display(description="Wallet")
+    def wallet(self, operador):
+        if not operador.direccion_stellar:
+            return "—"
+        url = STELLAR_EXPERT_ACCOUNT.format(operador.direccion_stellar)
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">Ver en stellar.expert</a>',
+            url,
+        )
 
 
 @admin.register(Recolector)

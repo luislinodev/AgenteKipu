@@ -4,7 +4,9 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.formats import date_format, number_format
+from django.utils.formats import number_format
+
+from .formato import fecha_hora
 
 from .gemini_check import chequear_consistencia
 from .models import Operador, Payment, Recolector, Ruta
@@ -12,6 +14,7 @@ from .signals import intentar_pago_si_corresponde
 from .stellar_agent import consultar_saldo_xlm, direccion_cuenta_pagadora
 
 STELLAR_EXPERT_TX = "https://stellar.expert/explorer/testnet/tx/{}"
+STELLAR_EXPERT_ACCOUNT = "https://stellar.expert/explorer/testnet/account/{}"
 
 
 def dashboard(request):
@@ -147,7 +150,7 @@ def _json_ruta_operador(request, ruta):
         "motivo_no_pago": ruta.motivo_no_pago or "",
         "url_confirmacion": _url_confirmacion(request, ruta),
         "foto_url": _url_foto(ruta),
-        "fecha": date_format(ruta.fecha),
+        "fecha": fecha_hora(ruta.creado_en),
         "recolector": ruta.recolector.nombre,
         "monto": str(ruta.monto),
     }
@@ -168,11 +171,18 @@ def _saldo_wallet_display(direccion):
     return f"{number_format(saldo, decimal_pos=7)} XLM"
 
 
+def _url_cuenta_stellar(direccion):
+    direccion = (direccion or "").strip()
+    if not direccion:
+        return ""
+    return STELLAR_EXPERT_ACCOUNT.format(direccion)
+
+
 def _json_pago(pago, *, para_operador):
     datos = {
         "id": pago.pk,
         "local": pago.ruta.punto.nombre,
-        "fecha": date_format(pago.ruta.fecha),
+        "fecha": fecha_hora(pago.fecha),
         "monto_display": f"{number_format(pago.monto, decimal_pos=7)} XLM",
         "tx_url": STELLAR_EXPERT_TX.format(pago.tx_hash) if pago.tx_hash else "",
     }
@@ -187,7 +197,8 @@ def _json_ruta_recolector(ruta):
     return {
         "id": ruta.pk,
         "nombre_local": ruta.punto.nombre,
-        "fecha": date_format(ruta.fecha),
+        "inicio": fecha_hora(ruta.creado_en) or "—",
+        "fin": fecha_hora(ruta.procesado_en) or "—",
         "estado": ruta.estado,
         "estado_display": ruta.get_estado_display(),
         "tiene_foto": bool(ruta.foto),
@@ -278,12 +289,15 @@ def subir_foto(request, ruta_id):
     ruta.gemini_consistente = resultado.consistente
     ruta.gemini_respuesta = resultado.respuesta
     ruta.gemini_error = resultado.error
+    if ruta.procesado_en is None:
+        ruta.procesado_en = timezone.now()
     ruta.save(
         update_fields=[
             "gemini_cantidad",
             "gemini_consistente",
             "gemini_respuesta",
             "gemini_error",
+            "procesado_en",
         ]
     )
     messages.success(request, f"Foto recibida para «{ruta.punto.nombre}».")
@@ -339,7 +353,7 @@ def estado_panel_operador(request):
                 {
                     "id": ruta.pk,
                     "nombre": ruta.punto.nombre,
-                    "fecha": date_format(ruta.fecha),
+                    "fecha": fecha_hora(ruta.creado_en),
                     "recolector": ruta.recolector.nombre,
                     "estado": ruta.estado,
                     "estado_display": ruta.get_estado_display(),
@@ -397,6 +411,7 @@ def pagos_recolector(request):
             "recolector": recolector,
             "pagos": pagos,
             "saldo_display": _saldo_wallet_display(recolector.direccion_stellar),
+            "wallet_url": _url_cuenta_stellar(recolector.direccion_stellar),
         },
     )
 
@@ -424,6 +439,7 @@ def pagos_operador(request):
             "operador": operador,
             "pagos": pagos,
             "saldo_display": _saldo_wallet_display(direccion_cuenta_pagadora()),
+            "wallet_url": _url_cuenta_stellar(operador.direccion_stellar),
         },
     )
 

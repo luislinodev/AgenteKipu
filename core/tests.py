@@ -1,13 +1,17 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from stellar_sdk import Keypair
 from django.urls import reverse
 
 from .admin import RutaAdmin
+from .formato import fecha_hora
 from .models import Operador, Payment, Punto, Recolector, Ruta
 
 User = get_user_model()
@@ -18,7 +22,11 @@ class CatalogoYRutaTests(TestCase):
     def setUp(self):
         self.op_user = User.objects.create_user("jose", password="x")
         self.rec_user = User.objects.create_user("luis", password="x")
-        self.operador = Operador.objects.create(user=self.op_user, nombre="José")
+        self.operador = Operador.objects.create(
+            user=self.op_user,
+            nombre="José",
+            direccion_stellar="G" + "C" * 55,
+        )
         self.recolector = Recolector.objects.create(
             user=self.rec_user,
             direccion_stellar="G" + "A" * 55,
@@ -34,6 +42,19 @@ class CatalogoYRutaTests(TestCase):
             fecha=date(2026, 9, 21),
             monto=Decimal("1.0000000"),
         )
+
+    def test_formato_fecha_hora(self):
+        valor = datetime(2026, 9, 21, 15, 15, 43, tzinfo=ZoneInfo("America/Lima"))
+        self.assertEqual(fecha_hora(valor), "21/09/2026 - 03:15:43 pm")
+
+    def test_operador_rechaza_clave_secreta(self):
+        self.operador.direccion_stellar = "S" + "A" * 55
+        with self.assertRaises(ValidationError):
+            self.operador.full_clean()
+
+    def test_operador_acepta_clave_publica(self):
+        self.operador.direccion_stellar = Keypair.random().public_key
+        self.operador.full_clean()
 
     def test_ruta_copia_nombre_del_catalogo(self):
         self.ruta.refresh_from_db()
@@ -117,6 +138,11 @@ class CatalogoYRutaTests(TestCase):
         self.assertTrue(self.ruta.foto)
         self.assertEqual(self.ruta.cantidad_baldes, 3)
         self.assertTrue(self.ruta.token_confirmacion)
+        self.assertIsNotNone(self.ruta.procesado_en)
+        self.assertIsNone(self.ruta.confirmado_en)
+        panel = self.client.get(reverse("panel_recolector"))
+        self.assertContains(panel, fecha_hora(self.ruta.creado_en))
+        self.assertContains(panel, fecha_hora(self.ruta.procesado_en))
 
         otra = SimpleUploadedFile("otra.jpg", b"otra", content_type="image/jpeg")
         bloqueada = self.client.post(
@@ -167,6 +193,12 @@ class CatalogoYRutaTests(TestCase):
         self.assertContains(response, "Ver transferencia")
         self.assertContains(response, "Saldo en tu wallet")
         self.assertContains(response, "12,5000000 XLM")
+        self.assertContains(response, "Ver wallet")
+        self.assertContains(
+            response,
+            "https://stellar.expert/explorer/testnet/account/"
+            + self.recolector.direccion_stellar,
+        )
         json_resp = self.client.get(reverse("estado_pagos_recolector"))
         pago = json_resp.json()["pagos"][0]
         self.assertEqual(pago["local"], "Restaurante Alita")
@@ -188,6 +220,12 @@ class CatalogoYRutaTests(TestCase):
         self.assertContains(response, "Restaurante Alita")
         self.assertContains(response, "Saldo en la wallet que paga")
         self.assertContains(response, "99,0000000 XLM")
+        self.assertContains(response, "Ver wallet")
+        self.assertContains(
+            response,
+            "https://stellar.expert/explorer/testnet/account/"
+            + self.operador.direccion_stellar,
+        )
         json_resp = self.client.get(reverse("estado_pagos_operador"))
         pago = json_resp.json()["pagos"][0]
         self.assertEqual(pago["recolector"], "luis")

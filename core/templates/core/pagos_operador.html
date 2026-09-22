@@ -1,18 +1,10 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static core_extras %}
 
 {% block title %}Pagos — AgenteKipu{% endblock %}
 
 {% block nav %}
-<nav>
-    <span class="nav-actor">{{ operador.nombre }}</span>
-    <a href="{% url 'panel_operador' %}" class="btn btn-ghost">Rutas</a>
-    <a href="{% url 'pagos_operador' %}" class="btn btn-ghost">Pagos</a>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="secondary">Salir</button>
-    </form>
-</nav>
+{% include "core/nav_panel.html" with actor=operador.nombre rol="operador" %}
 {% endblock %}
 
 {% block content %}
@@ -22,6 +14,9 @@
         <section class="card stat-card">
             <p>Saldo en la wallet que paga</p>
             <p class="stat-value" data-live="saldo">{% if saldo_display %}{{ saldo_display }}{% else %}—{% endif %}</p>
+            {% if wallet_url %}
+                <p class="wallet-link"><a href="{{ wallet_url }}" target="_blank" rel="noopener noreferrer">Ver wallet</a></p>
+            {% endif %}
         </section>
 
         <div class="table-wrap" data-live-tabla {% if not pagos %}hidden{% endif %}>
@@ -38,10 +33,10 @@
                 <tbody>
                     {% for pago in pagos %}
                         <tr data-pago-id="{{ pago.id }}">
-                            <td>{{ pago.ruta.recolector.nombre }}</td>
-                            <td><a href="{% url 'detalle_ruta_operador' pago.ruta_id %}">{{ pago.ruta.punto.nombre }}</a></td>
-                            <td>{{ pago.ruta.fecha }}</td>
-                            <td>{{ pago.monto }} XLM</td>
+                            <td data-label="A quién">{{ pago.ruta.recolector.nombre }}</td>
+                            <td data-label="Ruta"><a href="{% url 'detalle_ruta_operador' pago.ruta_id %}">{{ pago.ruta.punto.nombre }}</a></td>
+                            <td data-label="Fecha">{{ pago.fecha|fecha_hora_display }}</td>
+                            <td data-label="Monto">{{ pago.monto }} XLM</td>
                             <td class="acciones">
                                 {% if pago.tx_hash %}
                                     <a href="https://stellar.expert/explorer/testnet/tx/{{ pago.tx_hash }}" target="_blank" rel="noopener noreferrer">Ver transferencia</a>

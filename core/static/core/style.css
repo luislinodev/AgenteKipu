@@ -100,25 +100,18 @@ a:hover {
     opacity: 0.85;
 }
 
-.brand-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.7rem;
-    height: 1.7rem;
-    border-radius: 7px;
-    background: var(--brand);
-    color: var(--brand-ink);
-    font-size: 0.9rem;
-    font-weight: 800;
-    line-height: 1;
+.brand-logo {
+    display: block;
+    height: 2.65rem;
+    width: auto;
 }
 
 nav {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem 0.6rem;
+    min-width: 0;
 }
 
 nav .nav-actor {
@@ -127,6 +120,72 @@ nav .nav-actor {
     margin-right: 0.35rem;
     padding-right: 0.6rem;
     border-right: 1px solid var(--border);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .topbar {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.7rem 1rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .topbar h1 {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .topbar nav:has(> :nth-child(2)) {
+        flex: 1 1 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+
+    .topbar nav:has(> :nth-child(3)) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .topbar nav .nav-actor {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .topbar nav:has(> :nth-child(2)) > form {
+        display: flex;
+        min-width: 0;
+    }
+
+    .topbar nav:has(> :nth-child(2)) > a.btn,
+    .topbar nav:has(> :nth-child(2)) > form button {
+        width: 100%;
+        min-height: 2.4rem;
+        justify-content: center;
+        padding: 0.45rem 0.35rem;
+    }
+
+    .topbar nav > a.btn-ghost {
+        border: 1px solid var(--border);
+        background: var(--surface-alt);
+    }
+}
+
+nav a.btn.is-active {
+    background: var(--brand);
+    color: var(--brand-ink);
+    border-color: transparent;
+}
+
+nav a.btn.is-active:hover {
+    background: var(--brand-dark);
+    color: var(--brand-ink);
+    text-decoration: none;
 }
 
 nav a,
@@ -170,6 +229,12 @@ h3 {
     color: var(--text-muted);
     margin: 0 0 1.5rem;
     max-width: 62ch;
+}
+
+@media (min-width: 900px) {
+    .lead {
+        max-width: none;
+    }
 }
 
 .muted {
@@ -245,11 +310,135 @@ tr:last-child td {
     border-bottom: 0;
 }
 
+/* En pantallas chicas cada fila pasa a ficha: el encabezado queda
+   solo para lectores de pantalla y cada celda muestra su etiqueta. */
+@media (max-width: 719px) {
+    .table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .table-wrap table {
+        background: transparent;
+    }
+
+    .table-wrap thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .table-wrap tbody tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .table-wrap tbody tr:hover {
+        background: var(--surface);
+    }
+
+    .table-wrap tr:last-child td {
+        border-bottom: 1px solid var(--border);
+    }
+
+    .table-wrap td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.7rem 1rem;
+        border-bottom: 1px solid var(--border);
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+
+    .table-wrap td:last-child {
+        border-bottom: 0;
+    }
+
+    .table-wrap td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        max-width: 45%;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        text-align: left;
+    }
+
+    .table-wrap td:not([data-label])::before {
+        content: none;
+    }
+
+    .table-wrap td:first-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.85rem 1rem;
+        background: var(--surface-alt);
+        font-size: 1.05rem;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .table-wrap td.acciones {
+        justify-content: stretch;
+        padding: 0.75rem 1rem 0.9rem;
+    }
+
+    .table-wrap td.acciones:not(:has(a, span)) {
+        display: none;
+    }
+
+    .table-wrap td.acciones a {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        background: var(--brand);
+        color: var(--brand-ink);
+        border-radius: var(--radius-sm);
+        padding: 0.65rem 1rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .table-wrap td.acciones a:hover {
+        background: var(--brand-dark);
+        text-decoration: none;
+    }
+
+    .table-wrap td.acciones .muted {
+        text-align: left;
+    }
+}
+
 .acciones {
     display: flex;
     gap: 0.75rem;
     align-items: center;
     flex-wrap: wrap;
+}
+
+td[data-label="Fecha"],
+td[data-label="Inicio"],
+td[data-label="Fin"] {
+    white-space: nowrap;
 }
 
 .acciones form {
@@ -440,6 +629,10 @@ fieldset {
     font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: -0.01em;
+}
+
+.wallet-link {
+    margin: 0.35rem 0 0;
 }
 
 .actor-grid {

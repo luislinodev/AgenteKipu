@@ -1,18 +1,10 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static core_extras %}
 
 {% block title %}Rutas — AgenteKipu{% endblock %}
 
 {% block nav %}
-<nav>
-    <span class="nav-actor">{{ operador.nombre }}</span>
-    <a href="{% url 'panel_operador' %}" class="btn btn-ghost">Rutas</a>
-    <a href="{% url 'pagos_operador' %}" class="btn btn-ghost">Pagos</a>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="secondary">Salir</button>
-    </form>
-</nav>
+{% include "core/nav_panel.html" with actor=operador.nombre rol="operador" %}
 {% endblock %}
 
 {% block content %}
@@ -32,10 +24,10 @@
                 <tbody>
                     {% for ruta in rutas %}
                         <tr data-ruta-id="{{ ruta.id }}">
-                            <td><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.punto.nombre }}</a></td>
-                            <td data-live="fecha">{{ ruta.fecha }}</td>
-                            <td data-live="recolector">{{ ruta.recolector.nombre }}</td>
-                            <td>
+                            <td data-label="Local"><a href="{% url 'detalle_ruta_operador' ruta.id %}">{{ ruta.punto.nombre }}</a></td>
+                            <td data-label="Fecha" data-live="fecha">{{ ruta.creado_en|fecha_hora_display }}</td>
+                            <td data-label="Recolector" data-live="recolector">{{ ruta.recolector.nombre }}</td>
+                            <td data-label="Estado">
                                 <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span>
                             </td>
                         </tr>

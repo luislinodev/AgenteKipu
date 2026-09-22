@@ -3,10 +3,7 @@
 {% block title %}Subir foto — AgenteKipu{% endblock %}
 
 {% block nav %}
-<nav>
-    <a href="{% url 'panel_recolector' %}" class="btn btn-ghost">Rutas</a>
-    <a href="{% url 'pagos_recolector' %}" class="btn btn-ghost">Pagos</a>
-</nav>
+{% include "core/nav_panel.html" with rol="recolector" sin_salir=True %}
 {% endblock %}
 
 {% block container_class %}narrow{% endblock %}

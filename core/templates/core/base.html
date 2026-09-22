@@ -4,12 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}AgenteKipu{% endblock %}</title>
+    <link rel="icon" href="{% static 'core/agentekipu_icon.ico' %}" sizes="any">
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
 <body{% block body_attrs %}{% endblock %}>
     <header class="topbar">
-        <h1><a href="{% url 'dashboard' %}"><span class="brand-mark" aria-hidden="true">K</span>AgenteKipu</a></h1>
+        <h1><a href="{% url 'dashboard' %}"><img class="brand-logo" src="{% static 'core/agentekipu_logo.svg' %}" alt="AgenteKipu"></a></h1>
         {% block nav %}
         <nav>
             <a href="{% url 'login' %}" class="btn btn-ghost">Entrar</a>

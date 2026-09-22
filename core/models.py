@@ -5,6 +5,23 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models
 
 
+def _validar_clave_publica(valor):
+    valor = (valor or "").strip()
+    if valor.startswith("S"):
+        raise ValidationError(
+            "Pegá la clave pública, que empieza con G. La que empieza con S es secreta."
+        )
+    try:
+        from stellar_sdk import Keypair
+
+        Keypair.from_public_key(valor)
+    except Exception:
+        raise ValidationError(
+            "Tiene que ser una clave pública de Stellar (56 caracteres, empieza con G)."
+        ) from None
+    return valor
+
+
 class Operador(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -12,12 +29,21 @@ class Operador(models.Model):
         related_name="operador",
     )
     nombre = models.CharField(max_length=120)
+    direccion_stellar = models.CharField(
+        max_length=56,
+        verbose_name="clave pública",
+        help_text="Clave pública de la wallet en Stellar. Empieza con G. No pegues la clave secreta.",
+    )
 
     class Meta:
         ordering = ["nombre"]
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        self.direccion_stellar = _validar_clave_publica(self.direccion_stellar)
 
 
 class Recolector(models.Model):
@@ -94,6 +120,8 @@ class Ruta(models.Model):
     )
     nombre = models.CharField(max_length=200)
     fecha = models.DateField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+    procesado_en = models.DateTimeField(null=True, blank=True)
     monto = models.DecimalField(max_digits=12, decimal_places=7)
 
     cantidad_baldes = models.PositiveIntegerField(null=True, blank=True)

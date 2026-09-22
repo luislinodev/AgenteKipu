@@ -1,0 +1,22 @@
+{% if rol == "operador" %}
+    {% url "panel_operador" as href_rutas %}
+    {% url "pagos_operador" as href_pagos %}
+{% else %}
+    {% url "panel_recolector" as href_rutas %}
+    {% url "pagos_recolector" as href_pagos %}
+{% endif %}
+{% with nombre=request.resolver_match.url_name %}
+<nav>
+    {% if actor %}
+        <span class="nav-actor">{{ actor }}</span>
+    {% endif %}
+    <a href="{{ href_rutas }}" class="btn btn-ghost{% if nombre != 'pagos_operador' and nombre != 'pagos_recolector' %} is-active{% endif %}"{% if nombre != 'pagos_operador' and nombre != 'pagos_recolector' %} aria-current="page"{% endif %}>Rutas</a>
+    <a href="{{ href_pagos }}" class="btn btn-ghost{% if nombre == 'pagos_operador' or nombre == 'pagos_recolector' %} is-active{% endif %}"{% if nombre == 'pagos_operador' or nombre == 'pagos_recolector' %} aria-current="page"{% endif %}>Pagos</a>
+    {% if not sin_salir %}
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="secondary">Salir</button>
+        </form>
+    {% endif %}
+</nav>
+{% endwith %}

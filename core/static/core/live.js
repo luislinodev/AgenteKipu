@@ -131,12 +131,21 @@
         tr.dataset.rutaId = String(ruta.id);
 
         const tdLocal = document.createElement("td");
+        tdLocal.dataset.label = "Local";
         tdLocal.textContent = ruta.nombre_local;
 
-        const tdFecha = document.createElement("td");
-        tdFecha.textContent = ruta.fecha;
+        const tdInicio = document.createElement("td");
+        tdInicio.dataset.label = "Inicio";
+        tdInicio.dataset.live = "inicio";
+        tdInicio.textContent = ruta.inicio;
+
+        const tdFin = document.createElement("td");
+        tdFin.dataset.label = "Fin";
+        tdFin.dataset.live = "fin";
+        tdFin.textContent = ruta.fin;
 
         const tdEstado = document.createElement("td");
+        tdEstado.dataset.label = "Estado";
         const estado = document.createElement("span");
         estado.dataset.live = "estado";
         setEstado(estado, ruta.estado, ruta.estado_display);
@@ -147,7 +156,7 @@
         tdAcciones.dataset.live = "acciones";
         fillRecolectorAcciones(tdAcciones, ruta);
 
-        tr.append(tdLocal, tdFecha, tdEstado, tdAcciones);
+        tr.append(tdLocal, tdInicio, tdFin, tdEstado, tdAcciones);
         return tr;
     }
 
@@ -186,6 +195,8 @@
             if (!tr) {
                 return;
             }
+            setText(tr.querySelector('[data-live="inicio"]'), ruta.inicio);
+            setText(tr.querySelector('[data-live="fin"]'), ruta.fin);
             setEstado(
                 tr.querySelector('[data-live="estado"]'),
                 ruta.estado,
@@ -209,17 +220,21 @@
         const tr = document.createElement("tr");
         tr.dataset.rutaId = String(ruta.id);
         const tdNombre = document.createElement("td");
+        tdNombre.dataset.label = "Local";
         const link = document.createElement("a");
         link.href = ruta.url;
         link.textContent = ruta.nombre;
         tdNombre.appendChild(link);
         const tdFecha = document.createElement("td");
+        tdFecha.dataset.label = "Fecha";
         tdFecha.dataset.live = "fecha";
         tdFecha.textContent = ruta.fecha;
         const tdRec = document.createElement("td");
+        tdRec.dataset.label = "Recolector";
         tdRec.dataset.live = "recolector";
         tdRec.textContent = ruta.recolector;
         const tdEstado = document.createElement("td");
+        tdEstado.dataset.label = "Estado";
         const estado = document.createElement("span");
         estado.dataset.live = "estado";
         setEstado(estado, ruta.estado, ruta.estado_display);
@@ -262,11 +277,13 @@
 
         if (operador) {
             const tdQuien = document.createElement("td");
+            tdQuien.dataset.label = "A quién";
             tdQuien.textContent = pago.recolector;
             tr.appendChild(tdQuien);
         }
 
         const tdLocal = document.createElement("td");
+        tdLocal.dataset.label = "Ruta";
         if (operador && pago.ruta_url) {
             const link = document.createElement("a");
             link.href = pago.ruta_url;
@@ -277,9 +294,11 @@
         }
 
         const tdFecha = document.createElement("td");
+        tdFecha.dataset.label = "Fecha";
         tdFecha.textContent = dash(pago.fecha);
 
         const tdMonto = document.createElement("td");
+        tdMonto.dataset.label = "Monto";
         tdMonto.textContent = dash(pago.monto_display);
 
         const tdTx = document.createElement("td");

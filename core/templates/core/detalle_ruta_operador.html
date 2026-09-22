@@ -1,17 +1,10 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static core_extras %}
 
 {% block title %}{{ ruta.punto.nombre }} — AgenteKipu{% endblock %}
 
 {% block nav %}
-<nav>
-    <a href="{% url 'panel_operador' %}" class="btn btn-ghost">Rutas</a>
-    <a href="{% url 'pagos_operador' %}" class="btn btn-ghost">Pagos</a>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="secondary">Salir</button>
-    </form>
-</nav>
+{% include "core/nav_panel.html" with rol="operador" %}
 {% endblock %}
 
 {% block main_attrs %} data-live-url="{% url 'estado_ruta_operador' ruta.id %}" data-live-kind="detalle-ruta" data-live-interval="3000"{% endblock %}
@@ -22,7 +15,7 @@
     <div class="card-row">
         <section class="card">
             <p><strong>Recolector:</strong> {{ ruta.recolector.nombre }}</p>
-            <p><strong>Fecha:</strong> {{ ruta.fecha }}</p>
+            <p><strong>Creada:</strong> {{ ruta.creado_en|fecha_hora_display }}</p>
             <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
             <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></p>
             <p><strong>Baldes reportados:</strong> <span data-live="cantidad">{% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</span></p>
