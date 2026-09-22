@@ -1,91 +1,61 @@
+{% extends "core/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ ruta.punto.nombre }} — AgenteKipu</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}">
-    <style>
-        /* Agrupa las dos primeras tarjetas en 2 columnas */
-        .grid-detalles {
-            display: flex;
-            gap: 16px; /* Espacio entre el texto y la foto */
-            margin-bottom: 16px; /* Espacio antes del bloque de WhatsApp */
-        }
 
-        .grid-detalles .card {
-            flex: 1; /* Cada tarjeta ocupa el 50% del espacio sobrante */
-        }
+{% block title %}{{ ruta.punto.nombre }} — AgenteKipu{% endblock %}
 
-        /* Ajuste opcional para la imagen para que no desborde su contenedor */
-        .foto-visita {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
+{% block nav %}
+<nav>
+    <a href="{% url 'panel_operador' %}" class="btn btn-ghost">Rutas</a>
+    <a href="{% url 'pagos_operador' %}" class="btn btn-ghost">Pagos</a>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="secondary">Salir</button>
+    </form>
+</nav>
+{% endblock %}
 
-        /* En pantallas pequeñas (celulares) vuelve a mostrar todo vertical */
-        @media (max-width: 768px) {
-            .grid-detalles {
-                flex-direction: column;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header class="topbar">
-        <h1><a href="{% url 'panel_operador' %}">AgenteKipu</a></h1>
-        <nav>
-            <a href="{% url 'panel_operador' %}">Rutas</a>
-            <a href="{% url 'pagos_operador' %}">Pagos</a>
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit" class="secondary">Salir</button>
-            </form>
-        </nav>
-    </header>
-    <main class="container" data-live-url="{% url 'estado_ruta_operador' ruta.id %}" data-live-kind="detalle-ruta" data-live-interval="3000">
-        <h2>{{ ruta.punto.nombre }}</h2>
-    
-        <!-- Contenedor flex/grid para poner las dos tarjetas de arriba lado a lado -->
-        <div class="grid-detalles">
-            <section class="card">
-                <p><strong>Recolector:</strong> {{ ruta.recolector.nombre }}</p>
-                <p><strong>Fecha:</strong> {{ ruta.fecha }}</p>
-                <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
-                <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></p>
-                <p><strong>Baldes reportados:</strong> <span data-live="cantidad">{% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</span></p>
-                <p><strong>Gemini:</strong> <span data-live="gemini">{{ texto_gemini }}</span></p>
-                <p><strong>Confirmación del local:</strong> <span data-live="confirmacion">{{ ruta.get_confirmacion_display|default:"—" }}</span></p>
-                <p data-live-motivo-wrap {% if not ruta.motivo_no_pago %}hidden{% endif %}>
-                    <strong>Motivo:</strong> <span data-live="motivo">{{ ruta.motivo_no_pago }}</span>
-                </p>
-            </section>
-    
-            <section class="card">
-                <h3>Foto del recolector</h3>
-                <div data-live-con-foto {% if not ruta.foto %}hidden{% endif %}>
-                    {% if ruta.foto %}
-                        <img class="foto-visita" data-live="foto" src="{{ ruta.foto.url }}" alt="Foto subida por el recolector en {{ ruta.punto.nombre }}">
-                    {% else %}
-                        <img class="foto-visita" data-live="foto" alt="Foto subida por el recolector" hidden>
-                    {% endif %}
-                </div>
-                <p class="muted" data-live-sin-foto {% if ruta.foto %}hidden{% endif %}>Todavía no hay foto.</p>
-            </section>
-        </div>
-    
-        <!-- Esta sección queda fuera del wrapper, alineándose en la parte inferior -->
+{% block main_attrs %} data-live-url="{% url 'estado_ruta_operador' ruta.id %}" data-live-kind="detalle-ruta" data-live-interval="3000"{% endblock %}
+
+{% block content %}
+    <h2>{{ ruta.punto.nombre }}</h2>
+
+    <div class="card-row">
         <section class="card">
-            <h3>Link para WhatsApp</h3>
-            <div data-live-con-link {% if not url_confirmacion %}hidden{% endif %}>
-                <p class="muted">Copiá este link y reenvialo al dueño del local. No se lo muestres al recolector.</p>
-                <input class="link-copiar" type="text" readonly value="{{ url_confirmacion }}" onclick="this.select()">
-            </div>
-            <p class="muted" data-live-sin-link {% if url_confirmacion %}hidden{% endif %}>Todavía no hay link: el recolector aún no subió la foto.</p>
+            <p><strong>Recolector:</strong> {{ ruta.recolector.nombre }}</p>
+            <p><strong>Fecha:</strong> {{ ruta.fecha }}</p>
+            <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
+            <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></p>
+            <p><strong>Baldes reportados:</strong> <span data-live="cantidad">{% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</span></p>
+            <p><strong>Gemini:</strong> <span data-live="gemini">{{ texto_gemini }}</span></p>
+            <p><strong>Confirmación del local:</strong> <span data-live="confirmacion">{{ ruta.get_confirmacion_display|default:"—" }}</span></p>
+            <p data-live-motivo-wrap {% if not ruta.motivo_no_pago %}hidden{% endif %}>
+                <strong>Motivo:</strong> <span data-live="motivo">{{ ruta.motivo_no_pago }}</span>
+            </p>
         </section>
-    </main>
-    <script src="{% static 'core/live.js' %}" defer></script>
-</body>
-</html>
+
+        <section class="card">
+            <h3>Foto del recolector</h3>
+            <div data-live-con-foto {% if not ruta.foto %}hidden{% endif %}>
+                {% if ruta.foto %}
+                    <img class="foto-visita" data-live="foto" src="{{ ruta.foto.url }}" alt="Foto subida por el recolector en {{ ruta.punto.nombre }}">
+                {% else %}
+                    <img class="foto-visita" data-live="foto" alt="Foto subida por el recolector" hidden>
+                {% endif %}
+            </div>
+            <p class="muted" data-live-sin-foto {% if ruta.foto %}hidden{% endif %}>Todavía no hay foto.</p>
+        </section>
+    </div>
+
+    <section class="card">
+        <h3>Link para WhatsApp</h3>
+        <div data-live-con-link {% if not url_confirmacion %}hidden{% endif %}>
+            <p class="muted">Copiá este link y reenvialo al dueño del local. No se lo muestres al recolector.</p>
+            <input class="link-copiar" type="text" readonly value="{{ url_confirmacion }}" onclick="this.select()">
+        </div>
+        <p class="muted" data-live-sin-link {% if url_confirmacion %}hidden{% endif %}>Todavía no hay link: el recolector aún no subió la foto.</p>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'core/live.js' %}" defer></script>
+{% endblock %}

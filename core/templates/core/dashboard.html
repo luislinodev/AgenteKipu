@@ -1,21 +1,10 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AgenteKipu</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}">
-</head>
-<body>
-    <header class="topbar">
-        <h1><a href="{% url 'dashboard' %}">AgenteKipu</a></h1>
-        <nav>
-            <a href="{% url 'login' %}">Entrar</a>
-        </nav>
-    </header>
+{% extends "core/base.html" %}
 
-    <main class="container">
+{% block title %}AgenteKipu{% endblock %}
+
+{% block content %}
+    <section class="hero">
+        <span class="eyebrow">Stellar Odyssey Perú · AI Agents & Automated Workflows</span>
         <h2>Paga en Stellar cuando el local confirma, no cuando el recolector reporta</h2>
         <p class="lead">
             Un agente que paga en Stellar testnet solo cuando un tercero
@@ -23,80 +12,84 @@
             el piloto: el mecanismo no depende del material; el chequeo de foto
             con Gemini sí está calibrado para baldes de aceite.
         </p>
+        <a href="{% url 'login' %}" class="btn">Entrar al panel</a>
+    </section>
 
-        <h3>El caso: recolección de aceite usado</h3>
-        <p class="lead">
-            José arma la ruta. Luis recorre los locales y sube una foto de los
-            baldes. El dueño del restaurante confirma con un link, sin cuenta.
-            Recién ahí sale el pago.
-        </p>
+    <h3>El caso: recolección de aceite usado</h3>
+    <p class="lead">
+        José arma la ruta. Luis recorre los locales y sube una foto de los
+        baldes. El dueño del restaurante confirma con un link, sin cuenta.
+        Recién ahí sale el pago.
+    </p>
 
-        <div class="actor-grid">
-            <section class="card">
-                <h3>Operador</h3>
-                <p><strong>José</strong> — dueño del negocio de recolección</p>
-                <p class="muted">Carga los locales en Puntos y cada visita en Rutas (local, recolector, monto, fecha). Copia el link en /operador/. El link lo ve solo él.</p>
-            </section>
-            <section class="card">
-                <h3>Recolector</h3>
-                <p><strong>Luis</strong> — recolector de la ruta</p>
-                <p class="muted">En cada ruta sube una foto de los baldes y la cantidad que reporta. Esa subida dispara el flujo. No ve el link.</p>
-            </section>
-            <section class="card">
-                <h3>Proveedor de punto</h3>
-                <p><strong>El restaurante, taller o negocio</strong></p>
-                <p class="muted">No crea cuenta. Abre el WhatsApp, responde Sí o No una sola vez: ¿se recogieron esos baldes en tu local?</p>
-            </section>
-        </div>
-
-        <ol class="example-steps">
-            <li>
-                <strong>Luis reporta la recolección.</strong>
-                En /recolector/ sube la foto de los baldes y la cantidad.
-                No hay GPS: es falsificable y no resuelve el problema.
-            </li>
-            <li>
-                <strong>Gemini cuenta de respaldo.</strong>
-                Si el conteo es igual a lo reportado, es consistente. No cierra
-                el link ni pone el punto en revisión por sí solo. No es la prueba principal.
-            </li>
-            <li>
-                <strong>José reenvía el link.</strong>
-                El sistema se lo muestra solo a él, en /operador/. Se lo manda
-                al local por WhatsApp. No hay Twilio ni envío automático.
-                Si Luis lo viera, podría confirmarse a sí mismo.
-            </li>
-            <li>
-                <strong>El local confirma “Sí” o “No”.</strong>
-                Puede responder aunque Gemini haya fallado o no cuadre.
-                Un segundo clic no cambia la decisión.
-            </li>
-            <li>
-                <strong>El agente paga en Stellar.</strong>
-                Firma solo, sin Freighter, si el local dijo Sí y Gemini marcó
-                consistente. Si el local dice No, Gemini no cuadra, faltan fondos
-                o Horizon rechaza, queda en revisión con un motivo. /operador/
-                no paga a mano. Un pago ya enviado no se revierte.
-            </li>
-        </ol>
-
+    <div class="actor-grid">
         <section class="card">
-            <h3>Por qué hace falta el tercero</h3>
-            <p>
-                Sin AgenteKipu, José le cree a Luis. Luis controla toda la
-                información que le llega al dueño: puede reportar como recogido
-                algo que el local no confirma y cobrar la comisión igual.
-            </p>
-            <p>
-                Con AgenteKipu, cada comisión depende de que ese local específico
-                confirme esa recolección específica. El hash en Stellar es
-                verificable en stellar.expert, fuera de este sistema. El bono por
-                volumen del caso real no está en esta versión: hoy cada ruta
-                paga un monto fijo definido por el Operador.
-            </p>
+            <span class="actor-tag">O</span>
+            <h3>Operador</h3>
+            <p><strong>José</strong> — dueño del negocio de recolección</p>
+            <p class="muted">Carga los locales en Puntos y cada visita en Rutas (local, recolector, monto, fecha). Copia el link en /operador/. El link lo ve solo él.</p>
         </section>
+        <section class="card">
+            <span class="actor-tag">R</span>
+            <h3>Recolector</h3>
+            <p><strong>Luis</strong> — recolector de la ruta</p>
+            <p class="muted">En cada ruta sube una foto de los baldes y la cantidad que reporta. Esa subida dispara el flujo. No ve el link.</p>
+        </section>
+        <section class="card">
+            <span class="actor-tag">P</span>
+            <h3>Proveedor de punto</h3>
+            <p><strong>El restaurante, taller o negocio</strong></p>
+            <p class="muted">No crea cuenta. Abre el WhatsApp, responde Sí o No una sola vez: ¿se recogieron esos baldes en tu local?</p>
+        </section>
+    </div>
 
-        <p><a href="{% url 'login' %}">Entrar al panel</a></p>
-    </main>
-</body>
-</html>
+    <h3>Cómo funciona, paso a paso</h3>
+    <ol class="example-steps">
+        <li>
+            <strong>Luis reporta la recolección.</strong>
+            En /recolector/ sube la foto de los baldes y la cantidad.
+            No hay GPS: es falsificable y no resuelve el problema.
+        </li>
+        <li>
+            <strong>Gemini cuenta de respaldo.</strong>
+            Si el conteo es igual a lo reportado, es consistente. No cierra
+            el link ni pone el punto en revisión por sí solo. No es la prueba principal.
+        </li>
+        <li>
+            <strong>José reenvía el link.</strong>
+            El sistema se lo muestra solo a él, en /operador/. Se lo manda
+            al local por WhatsApp. No hay Twilio ni envío automático.
+            Si Luis lo viera, podría confirmarse a sí mismo.
+        </li>
+        <li>
+            <strong>El local confirma "Sí" o "No".</strong>
+            Puede responder aunque Gemini haya fallado o no cuadre.
+            Un segundo clic no cambia la decisión.
+        </li>
+        <li>
+            <strong>El agente paga en Stellar.</strong>
+            Firma solo, sin Freighter, si el local dijo Sí y Gemini marcó
+            consistente. Si el local dice No, Gemini no cuadra, faltan fondos
+            o Horizon rechaza, queda en revisión con un motivo. /operador/
+            no paga a mano. Un pago ya enviado no se revierte.
+        </li>
+    </ol>
+
+    <section class="card">
+        <h3>Por qué hace falta el tercero</h3>
+        <p>
+            Sin AgenteKipu, José le cree a Luis. Luis controla toda la
+            información que le llega al dueño: puede reportar como recogido
+            algo que el local no confirma y cobrar la comisión igual.
+        </p>
+        <p>
+            Con AgenteKipu, cada comisión depende de que ese local específico
+            confirme esa recolección específica. El hash en Stellar es
+            verificable en stellar.expert, fuera de este sistema. El bono por
+            volumen del caso real no está en esta versión: hoy cada ruta
+            paga un monto fijo definido por el Operador.
+        </p>
+    </section>
+
+    <p class="footer-note">AgenteKipu corre sobre Stellar Testnet. Los pagos no usan fondos reales.</p>
+{% endblock %}

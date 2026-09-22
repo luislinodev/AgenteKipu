@@ -1,0 +1,26 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}AgenteKipu{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body{% block body_attrs %}{% endblock %}>
+    <header class="topbar">
+        <h1><a href="{% url 'dashboard' %}"><span class="brand-mark" aria-hidden="true">K</span>AgenteKipu</a></h1>
+        {% block nav %}
+        <nav>
+            <a href="{% url 'login' %}" class="btn btn-ghost">Entrar</a>
+        </nav>
+        {% endblock %}
+    </header>
+
+    <main class="container {% block container_class %}{% endblock %}"{% block main_attrs %}{% endblock %}>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
