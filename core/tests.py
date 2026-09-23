@@ -81,6 +81,8 @@ class CatalogoYRutaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Restaurante Alita")
         self.assertContains(response, "XLM")
+        self.assertContains(response, "Promedio del local")
+        self.assertContains(response, "0 baldes")
         self.assertContains(response, 'data-live-kind="detalle-ruta"')
         self.assertContains(response, "Todavía no hay foto.")
         self.assertNotContains(response, 'data-live="foto" src="')
@@ -167,7 +169,9 @@ class CatalogoYRutaTests(TestCase):
         self.ruta.refresh_from_db()
         self.assertEqual(self.ruta.confirmacion, Ruta.Confirmacion.SI)
         self.assertEqual(self.ruta.estado, Ruta.Estado.PAGADO)
-        self.assertTrue(Payment.objects.filter(ruta=self.ruta, tx_hash="hash-de-prueba").exists())
+        pago = Payment.objects.get(ruta=self.ruta, tx_hash="hash-de-prueba")
+        self.assertEqual(pago.monto, self.ruta.monto)
+        self.assertEqual(pago.comision, Decimal("0"))
 
         segunda = self.client.post(
             reverse("confirmar_punto", kwargs={"token": "token-prueba"}),
@@ -177,6 +181,66 @@ class CatalogoYRutaTests(TestCase):
         self.ruta.refresh_from_db()
         self.assertEqual(self.ruta.confirmacion, Ruta.Confirmacion.SI)
         self.assertEqual(Payment.objects.filter(ruta=self.ruta).count(), 1)
+
+    def _confirmar_si(self, token):
+        return self.client.post(
+            reverse("confirmar_punto", kwargs={"token": token}),
+            {"confirmacion": "si"},
+        )
+
+    @patch("core.signals.procesar_pago", return_value="hash-comision")
+    def test_pago_suma_comision_por_excedente(self, mock_pago):
+        self.punto.cantidad_promedio = 8
+        self.punto.comision_por_balde = Decimal("0.1000000")
+        self.punto.save()
+        self.ruta.cantidad_baldes = 11
+        self.ruta.gemini_consistente = True
+        self.ruta.token_confirmacion = "token-comision"
+        self.ruta.save()
+
+        self._confirmar_si("token-comision")
+
+        pago = Payment.objects.get(ruta=self.ruta)
+        self.assertEqual(pago.comision, Decimal("0.3000000"))
+        self.assertEqual(pago.monto, Decimal("1.3000000"))
+        self.assertEqual(mock_pago.call_args[0][0].monto, Decimal("1.3000000"))
+
+        self.client.force_login(self.op_user)
+        detalle = self.client.get(reverse("detalle_ruta_operador", args=[self.ruta.pk]))
+        self.assertContains(detalle, "8 baldes")
+        self.assertContains(detalle, "0,3000000 XLM")
+        estado = self.client.get(reverse("estado_ruta_operador", args=[self.ruta.pk]))
+        self.assertEqual(estado.json()["comision_display"], "0,3000000 XLM")
+        self.assertEqual(estado.json()["cantidad_promedio"], 8)
+        with patch("core.views.consultar_saldo_xlm", return_value=Decimal("1")):
+            pagos = self.client.get(reverse("pagos_operador"))
+        self.assertContains(pagos, "Comisión")
+        self.assertContains(pagos, "1,3000000 XLM")
+        self.assertContains(pagos, "0,3000000 XLM")
+
+        self.punto.cantidad_promedio = 20
+        self.punto.comision_por_balde = Decimal("9")
+        self.punto.save()
+        pago.refresh_from_db()
+        self.assertEqual(pago.comision, Decimal("0.3000000"))
+        self.assertEqual(pago.monto, Decimal("1.3000000"))
+
+    @patch("core.signals.procesar_pago", return_value="hash-sin-extra")
+    def test_pago_sin_excedente_no_suma_comision(self, mock_pago):
+        self.punto.cantidad_promedio = 8
+        self.punto.comision_por_balde = Decimal("0.1000000")
+        self.punto.save()
+        self.ruta.cantidad_baldes = 8
+        self.ruta.gemini_consistente = True
+        self.ruta.token_confirmacion = "token-sin-extra"
+        self.ruta.save()
+
+        self._confirmar_si("token-sin-extra")
+
+        pago = Payment.objects.get(ruta=self.ruta)
+        self.assertEqual(pago.comision, Decimal("0"))
+        self.assertEqual(pago.monto, Decimal("1.0000000"))
+        self.assertEqual(mock_pago.call_args[0][0].monto, Decimal("1.0000000"))
 
     @patch("core.views.consultar_saldo_xlm", return_value=Decimal("12.5000000"))
     def test_pagos_recolector_muestra_ruta_y_fecha(self, _saldo):

@@ -62,6 +62,18 @@
             data.confirmacion_display
         );
 
+        const comisionWrap = root.querySelector("[data-live-comision-wrap]");
+        const comision = root.querySelector('[data-live="comision"]');
+        if (comisionWrap && comision) {
+            if (data.comision_display) {
+                comisionWrap.hidden = false;
+                setText(comision, data.comision_display);
+            } else {
+                comisionWrap.hidden = true;
+                comision.textContent = "";
+            }
+        }
+
         const motivoWrap = root.querySelector("[data-live-motivo-wrap]");
         const motivo = root.querySelector('[data-live="motivo"]');
         if (motivoWrap && motivo) {
@@ -301,6 +313,10 @@
         tdMonto.dataset.label = "Monto";
         tdMonto.textContent = dash(pago.monto_display);
 
+        const tdComision = document.createElement("td");
+        tdComision.dataset.label = "Comisión";
+        tdComision.textContent = dash(pago.comision_display);
+
         const tdTx = document.createElement("td");
         tdTx.className = "acciones";
         if (pago.tx_url) {
@@ -317,7 +333,7 @@
             tdTx.appendChild(span);
         }
 
-        tr.append(tdLocal, tdFecha, tdMonto, tdTx);
+        tr.append(tdLocal, tdFecha, tdMonto, tdComision, tdTx);
         return tr;
     }
 

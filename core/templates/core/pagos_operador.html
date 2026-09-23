@@ -27,6 +27,7 @@
                         <th>Ruta</th>
                         <th>Fecha</th>
                         <th>Monto</th>
+                        <th>Comisión</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -37,6 +38,7 @@
                             <td data-label="Ruta"><a href="{% url 'detalle_ruta_operador' pago.ruta_id %}">{{ pago.ruta.punto.nombre }}</a></td>
                             <td data-label="Fecha">{{ pago.fecha|fecha_hora_display }}</td>
                             <td data-label="Monto">{{ pago.monto }} XLM</td>
+                            <td data-label="Comisión">{{ pago.comision }} XLM</td>
                             <td class="acciones">
                                 {% if pago.tx_hash %}
                                     <a href="https://stellar.expert/explorer/testnet/tx/{{ pago.tx_hash }}" target="_blank" rel="noopener noreferrer">Ver transferencia</a>

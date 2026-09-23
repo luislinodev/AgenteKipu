@@ -17,6 +17,10 @@
             <p><strong>Recolector:</strong> {{ ruta.recolector.nombre }}</p>
             <p><strong>Creada:</strong> {{ ruta.creado_en|fecha_hora_display }}</p>
             <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
+            <p><strong>Promedio del local:</strong> {{ ruta.punto.cantidad_promedio }} baldes</p>
+            <p data-live-comision-wrap {% if not comision_display %}hidden{% endif %}>
+                <strong>Comisión:</strong> <span data-live="comision">{{ comision_display }}</span>
+            </p>
             <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></p>
             <p><strong>Baldes reportados:</strong> <span data-live="cantidad">{% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</span></p>
             <p><strong>Gemini:</strong> <span data-live="gemini">{{ texto_gemini }}</span></p>

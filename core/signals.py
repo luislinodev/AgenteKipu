@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class _OrdenPago:
     """Datos mínimos para stellar_agent, sin acoplarlo a Django."""
 
-    def __init__(self, ruta):
+    def __init__(self, ruta, monto):
         self.pk = ruta.pk
-        self.monto = ruta.monto
+        self.monto = monto
         self.direccion_stellar = ruta.recolector.direccion_stellar
 
 
@@ -77,11 +77,14 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
             instance.estado = Ruta.Estado.CONFIRMADO
         return
 
+    comision = instance.comision_confirmada()
+    total = instance.monto_a_pagar()
     try:
         payment = Payment.objects.create(
             ruta=instance,
             tx_hash="",
-            monto=instance.monto,
+            monto=total,
+            comision=comision,
             estado="pendiente",
         )
     except IntegrityError:
@@ -93,7 +96,7 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         return
 
     try:
-        tx_hash = procesar_pago(_OrdenPago(instance))
+        tx_hash = procesar_pago(_OrdenPago(instance, total))
         payment.tx_hash = tx_hash
         payment.estado = "completado"
         payment.save(update_fields=["tx_hash", "estado"])
@@ -104,7 +107,7 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
             "Pago enviado para ruta %s. hash=%s monto=%s",
             instance.pk,
             tx_hash,
-            instance.monto,
+            total,
         )
     except (FondosInsuficientesError, HorizonTransactionError) as exc:
         payment.delete()

@@ -35,6 +35,20 @@ def _puede_subir_foto(ruta):
     return True
 
 
+def _pago_de(ruta):
+    try:
+        return ruta.payment
+    except Payment.DoesNotExist:
+        return None
+
+
+def _comision_pagada_display(ruta):
+    pago = _pago_de(ruta)
+    if pago is None:
+        return ""
+    return f"{number_format(pago.comision, decimal_pos=7)} XLM"
+
+
 def _texto_gemini(ruta):
     if ruta.gemini_error:
         return "error"
@@ -153,6 +167,8 @@ def _json_ruta_operador(request, ruta):
         "fecha": fecha_hora(ruta.creado_en),
         "recolector": ruta.recolector.nombre,
         "monto": str(ruta.monto),
+        "cantidad_promedio": ruta.punto.cantidad_promedio,
+        "comision_display": _comision_pagada_display(ruta),
     }
 
 
@@ -184,6 +200,7 @@ def _json_pago(pago, *, para_operador):
         "local": pago.ruta.punto.nombre,
         "fecha": fecha_hora(pago.fecha),
         "monto_display": f"{number_format(pago.monto, decimal_pos=7)} XLM",
+        "comision_display": f"{number_format(pago.comision, decimal_pos=7)} XLM",
         "tx_url": STELLAR_EXPERT_TX.format(pago.tx_hash) if pago.tx_hash else "",
     }
     if para_operador:
@@ -335,6 +352,7 @@ def detalle_ruta_operador(request, ruta_id):
             "ruta": ruta,
             "url_confirmacion": _url_confirmacion(request, ruta),
             "texto_gemini": _texto_gemini(ruta),
+            "comision_display": _comision_pagada_display(ruta),
         },
     )
 

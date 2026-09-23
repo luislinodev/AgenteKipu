@@ -1,8 +1,12 @@
 import secrets
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import IntegrityError, models
+
+XLM = Decimal("0.0000001")
 
 
 def _validar_clave_publica(valor):
@@ -76,6 +80,19 @@ class Punto(models.Model):
         related_name="puntos",
     )
     nombre = models.CharField(max_length=200)
+    cantidad_promedio = models.PositiveIntegerField(
+        default=0,
+        verbose_name="cantidad promedio",
+        help_text="Baldes que este local suele entregar. La comisión se calcula sobre lo que supere este número.",
+    )
+    comision_por_balde = models.DecimalField(
+        max_digits=12,
+        decimal_places=7,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+        verbose_name="comisión por balde",
+        help_text="XLM por cada balde confirmado por encima del promedio. 0 no suma comisión.",
+    )
 
     class Meta:
         ordering = ["nombre"]
@@ -175,6 +192,17 @@ class Ruta(models.Model):
                 self.operador_id = self.punto.operador_id
         super().save(*args, **kwargs)
 
+    def comision_confirmada(self) -> Decimal:
+        """XLM extra por baldes confirmados por encima del promedio del local."""
+        baldes = self.cantidad_baldes or 0
+        excedente = baldes - self.punto.cantidad_promedio
+        if excedente <= 0:
+            return Decimal("0")
+        return (Decimal(excedente) * self.punto.comision_por_balde).quantize(XLM)
+
+    def monto_a_pagar(self) -> Decimal:
+        return (self.monto + self.comision_confirmada()).quantize(XLM)
+
     def asegurar_token(self) -> str:
         if self.token_confirmacion:
             return self.token_confirmacion
@@ -205,6 +233,13 @@ class Payment(models.Model):
     )
     tx_hash = models.CharField(max_length=64, blank=True)
     monto = models.DecimalField(max_digits=12, decimal_places=7)
+    comision = models.DecimalField(
+        max_digits=12,
+        decimal_places=7,
+        default=Decimal("0"),
+        verbose_name="comisión",
+        help_text="Parte del monto que corresponde a baldes por encima del promedio, calculada al pagar.",
+    )
     fecha = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(
         max_length=20,

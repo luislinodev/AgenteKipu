@@ -72,7 +72,7 @@ class RecolectorAdmin(admin.ModelAdmin):
 
 @admin.register(Punto)
 class PuntoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "operador")
+    list_display = ("nombre", "operador", "cantidad_promedio", "comision_por_balde")
     search_fields = ("nombre", "operador__nombre")
     ordering = ("nombre",)
 
@@ -84,9 +84,10 @@ class PuntoAdmin(admin.ModelAdmin):
         )
 
     def get_fields(self, request, obj=None):
+        comunes = ("nombre", "cantidad_promedio", "comision_por_balde")
         if request.user.is_superuser:
-            return ("operador", "nombre")
-        return ("nombre",)
+            return ("operador",) + comunes
+        return comunes
 
     def save_model(self, request, obj, form, change):
         if not request.user.is_superuser and not obj.operador_id:
@@ -138,7 +139,7 @@ class RutaAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("ruta", "monto", "estado", "transferencia", "fecha", "tx_hash")
+    list_display = ("ruta", "monto", "comision", "estado", "transferencia", "fecha", "tx_hash")
     list_filter = ("estado",)
     search_fields = ("tx_hash", "ruta__punto__nombre")
     readonly_fields = ("transferencia",)
