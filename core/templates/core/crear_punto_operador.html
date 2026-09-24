@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+
+{% block title %}Nuevo punto de recojo — AgenteKipu{% endblock %}
+
+{% block nav %}
+{% include "core/nav_panel.html" with actor=operador rol="operador" %}
+{% endblock %}
+
+{% block container_class %}narrow{% endblock %}
+
+{% block content %}
+    <h2>Nuevo punto de recojo</h2>
+    <p class="lead">El nombre identifica al local. La cantidad promedio es lo que suele entregar; la comisión se suma por cada balde confirmado por encima de ese número.</p>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% if volver_a_ruta %}
+            <input type="hidden" name="volver" value="ruta">
+        {% endif %}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="muted">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}
+                <ul class="messages">
+                    {% for error in field.errors %}
+                        <li class="error">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endfor %}
+        {% if form.non_field_errors %}
+            <ul class="messages">
+                {% for error in form.non_field_errors %}
+                    <li class="error">{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <button type="submit">Guardar punto</button>
+    </form>
+{% endblock %}

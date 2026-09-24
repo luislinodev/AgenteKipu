@@ -1,0 +1,48 @@
+{% extends "core/base.html" %}
+
+{% block title %}Nueva ruta — AgenteKipu{% endblock %}
+
+{% block nav %}
+{% include "core/nav_panel.html" with actor=operador rol="operador" %}
+{% endblock %}
+
+{% block container_class %}narrow{% endblock %}
+
+{% block content %}
+    <h2>Nueva ruta</h2>
+    <p class="lead">Elegí el punto de recojo, el recolector, el monto y la fecha. El operador de la ruta es esta cuenta.</p>
+
+    {% if not hay_puntos %}
+        <div class="card aviso">
+            <p>No hay puntos de recojo.</p>
+            <p class="section-action"><a class="btn" href="{% url 'crear_punto_operador' %}?volver=ruta">Crear uno</a></p>
+        </div>
+    {% else %}
+    {% if not hay_recolectores %}
+        <ul class="messages"><li class="error">Todavía no hay recolectores para asignar.</li></ul>
+    {% endif %}
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+                <ul class="messages">
+                    {% for error in field.errors %}
+                        <li class="error">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endfor %}
+        {% if form.non_field_errors %}
+            <ul class="messages">
+                {% for error in form.non_field_errors %}
+                    <li class="error">{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <button type="submit"{% if not hay_recolectores %} disabled{% endif %}>Guardar ruta</button>
+    </form>
+    {% endif %}
+{% endblock %}

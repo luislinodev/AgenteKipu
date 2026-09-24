@@ -1,5 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -7,9 +10,9 @@ from django.utils import timezone
 from django.utils.formats import number_format
 
 from .formato import fecha_hora
-
+from .forms import PuntoOperadorForm, RutaOperadorForm
 from .gemini_check import chequear_consistencia
-from .models import Operador, Payment, Recolector, Ruta
+from .models import Operador, Payment, Punto, Recolector, Ruta
 from .signals import intentar_pago_si_corresponde
 from .stellar_agent import consultar_saldo_xlm, direccion_cuenta_pagadora
 
@@ -152,6 +155,19 @@ def _url_foto(ruta):
     return ruta.foto.url
 
 
+def _puede_proceder_pago(ruta):
+    """El local dijo que sí y Gemini no coincidió: el operador puede pagar igual."""
+    if ruta.confirmacion != Ruta.Confirmacion.SI:
+        return False
+    if ruta.gemini_consistente is not False:
+        return False
+    if ruta.estado in (Ruta.Estado.PAGADO, Ruta.Estado.RECHAZADO):
+        return False
+    if Payment.objects.filter(ruta=ruta).exists():
+        return False
+    return True
+
+
 def _json_ruta_operador(request, ruta):
     return {
         "id": ruta.pk,
@@ -169,6 +185,7 @@ def _json_ruta_operador(request, ruta):
         "monto": str(ruta.monto),
         "cantidad_promedio": ruta.punto.cantidad_promedio,
         "comision_display": _comision_pagada_display(ruta),
+        "puede_proceder_pago": _puede_proceder_pago(ruta),
     }
 
 
@@ -209,6 +226,12 @@ def _json_pago(pago, *, para_operador):
     return datos
 
 
+def _motivo_para_recolector(ruta):
+    if ruta.estado != Ruta.Estado.RECHAZADO:
+        return ""
+    return (ruta.motivo_no_pago or "").strip()
+
+
 def _json_ruta_recolector(ruta):
     puede_subir = _puede_subir_foto(ruta)
     return {
@@ -218,6 +241,8 @@ def _json_ruta_recolector(ruta):
         "fin": fecha_hora(ruta.procesado_en) or "—",
         "estado": ruta.estado,
         "estado_display": ruta.get_estado_display(),
+        "motivo_no_pago": _motivo_para_recolector(ruta),
+        "detalle_url": reverse("detalle_ruta_recolector", args=[ruta.pk]),
         "tiene_foto": bool(ruta.foto),
         "puede_subir": puede_subir,
         "subir_url": reverse("subir_foto", args=[ruta.pk]) if puede_subir else "",
@@ -240,7 +265,7 @@ def panel_recolector(request):
         Ruta.objects.filter(recolector=recolector)
         .select_related("punto")
         .defer("token_confirmacion")
-        .order_by("fecha", "id")
+        .order_by("-creado_en", "-id")
     )
     return render(
         request,
@@ -322,6 +347,25 @@ def subir_foto(request, ruta_id):
 
 
 @login_required
+def detalle_ruta_recolector(request, ruta_id):
+    recolector = _recolector_actual(request)
+    ruta = get_object_or_404(
+        Ruta.objects.select_related("punto").defer("token_confirmacion"),
+        pk=ruta_id,
+        recolector=recolector,
+    )
+    return render(
+        request,
+        "core/detalle_ruta_recolector.html",
+        {
+            "recolector": recolector,
+            "ruta": ruta,
+            "motivo_no_pago": _motivo_para_recolector(ruta),
+        },
+    )
+
+
+@login_required
 def panel_operador(request):
     operador = _operador_actual(request)
     rutas = (
@@ -333,6 +377,75 @@ def panel_operador(request):
         request,
         "core/panel_operador.html",
         {"operador": operador, "rutas": rutas},
+    )
+
+
+@login_required
+def puntos_operador(request):
+    operador = _operador_actual(request)
+    puntos = Punto.objects.filter(operador=operador)
+    return render(
+        request,
+        "core/puntos_operador.html",
+        {"operador": operador, "puntos": puntos},
+    )
+
+
+@login_required
+def crear_punto_operador(request):
+    operador = _operador_actual(request)
+    volver_a_ruta = request.POST.get("volver") == "ruta" or request.GET.get("volver") == "ruta"
+    form = PuntoOperadorForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        punto = form.save(commit=False)
+        punto.operador = operador
+        try:
+            punto.save()
+        except IntegrityError:
+            form.add_error("nombre", "Ya tenés un punto de recojo con ese nombre.")
+        else:
+            messages.success(request, f"Punto «{punto.nombre}» creado.")
+            if volver_a_ruta:
+                return redirect("crear_ruta_operador")
+            return redirect("puntos_operador")
+    return render(
+        request,
+        "core/crear_punto_operador.html",
+        {"operador": operador, "form": form, "volver_a_ruta": volver_a_ruta},
+    )
+
+
+@login_required
+def crear_ruta_operador(request):
+    operador = _operador_actual(request)
+    hay_puntos = Punto.objects.filter(operador=operador).exists()
+    if not hay_puntos:
+        return render(
+            request,
+            "core/crear_ruta_operador.html",
+            {"operador": operador, "hay_puntos": False},
+        )
+    form = RutaOperadorForm(operador, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        ruta = form.save(commit=False)
+        ruta.operador = operador
+        try:
+            ruta.clean()
+            ruta.save()
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, f"Ruta de «{ruta.punto.nombre}» creada.")
+            return redirect("panel_operador")
+    return render(
+        request,
+        "core/crear_ruta_operador.html",
+        {
+            "operador": operador,
+            "form": form,
+            "hay_puntos": True,
+            "hay_recolectores": form.fields["recolector"].queryset.exists(),
+        },
     )
 
 
@@ -353,8 +466,64 @@ def detalle_ruta_operador(request, ruta_id):
             "url_confirmacion": _url_confirmacion(request, ruta),
             "texto_gemini": _texto_gemini(ruta),
             "comision_display": _comision_pagada_display(ruta),
+            "puede_proceder_pago": _puede_proceder_pago(ruta),
         },
     )
+
+
+@login_required
+@require_POST
+def proceder_pago_operador(request, ruta_id):
+    _operador_actual(request)
+    ruta = get_object_or_404(
+        Ruta.objects.select_related("recolector", "punto"),
+        pk=ruta_id,
+        operador__user=request.user,
+    )
+    if not _puede_proceder_pago(ruta):
+        messages.error(request, "Esta ruta no admite proceder con el pago.")
+        return redirect("detalle_ruta_operador", ruta_id=ruta.pk)
+
+    decision = request.POST.get("decision", "")
+    if decision == "no":
+        motivo = (request.POST.get("motivo") or "").strip()
+        if not motivo:
+            messages.error(request, "Escribí el motivo del no pago.")
+            return render(
+                request,
+                "core/detalle_ruta_operador.html",
+                {
+                    "operador": request.user.operador,
+                    "ruta": ruta,
+                    "url_confirmacion": _url_confirmacion(request, ruta),
+                    "texto_gemini": _texto_gemini(ruta),
+                    "comision_display": _comision_pagada_display(ruta),
+                    "puede_proceder_pago": True,
+                    "mostrar_rechazo": True,
+                    "motivo_rechazo": request.POST.get("motivo") or "",
+                },
+            )
+        Ruta.objects.filter(pk=ruta.pk).update(
+            estado=Ruta.Estado.RECHAZADO,
+            motivo_no_pago=motivo,
+        )
+        messages.success(request, f"Pago rechazado para «{ruta.punto.nombre}».")
+        return redirect("detalle_ruta_operador", ruta_id=ruta.pk)
+
+    if decision != "si":
+        messages.error(request, "Elegí Sí o No.")
+        return redirect("detalle_ruta_operador", ruta_id=ruta.pk)
+
+    intentar_pago_si_corresponde(sender=Ruta, instance=ruta, forzar_conteo=True)
+    ruta.refresh_from_db()
+    if ruta.estado == Ruta.Estado.PAGADO:
+        messages.success(request, f"Pago enviado para «{ruta.punto.nombre}».")
+    else:
+        messages.error(
+            request,
+            ruta.motivo_no_pago or "No se pudo completar el pago.",
+        )
+    return redirect("detalle_ruta_operador", ruta_id=ruta.pk)
 
 
 @login_required
@@ -401,7 +570,7 @@ def estado_panel_recolector(request):
         Ruta.objects.filter(recolector=recolector)
         .select_related("punto")
         .defer("token_confirmacion")
-        .order_by("fecha", "id")
+        .order_by("-creado_en", "-id")
     )
     return JsonResponse(
         {"rutas": [_json_ruta_recolector(ruta) for ruta in rutas]}

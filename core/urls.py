@@ -38,12 +38,28 @@ urlpatterns = [
         name="estado_pagos_recolector",
     ),
     path(
+        "recolector/rutas/<int:ruta_id>/",
+        views.detalle_ruta_recolector,
+        name="detalle_ruta_recolector",
+    ),
+    path(
         "recolector/rutas/<int:ruta_id>/foto/",
         views.subir_foto,
         name="subir_foto",
     ),
     path("inicio/", views.despues_de_entrar, name="despues_de_entrar"),
     path("operador/", views.panel_operador, name="panel_operador"),
+    path("operador/puntos/", views.puntos_operador, name="puntos_operador"),
+    path(
+        "operador/puntos/nuevo/",
+        views.crear_punto_operador,
+        name="crear_punto_operador",
+    ),
+    path(
+        "operador/rutas/nueva/",
+        views.crear_ruta_operador,
+        name="crear_ruta_operador",
+    ),
     path(
         "operador/estado/",
         views.estado_panel_operador,
@@ -59,6 +75,11 @@ urlpatterns = [
         "operador/rutas/<int:ruta_id>/",
         views.detalle_ruta_operador,
         name="detalle_ruta_operador",
+    ),
+    path(
+        "operador/rutas/<int:ruta_id>/proceder/",
+        views.proceder_pago_operador,
+        name="proceder_pago_operador",
     ),
     path(
         "operador/rutas/<int:ruta_id>/estado/",

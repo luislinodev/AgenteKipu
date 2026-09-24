@@ -19,13 +19,18 @@ def _acotar_a_operador(request, queryset, lookup):
 
 @admin.register(Operador)
 class OperadorAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "user", "wallet", "direccion_stellar")
-    search_fields = ("nombre", "user__username", "direccion_stellar")
+    list_display = ("user", "wallet", "direccion_stellar")
+    search_fields = (
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+        "direccion_stellar",
+    )
 
     def get_fields(self, request, obj=None):
         if obj:
-            return ("user", "nombre", "direccion_stellar", "wallet")
-        return ("user", "nombre", "direccion_stellar")
+            return ("user", "direccion_stellar", "wallet")
+        return ("user", "direccion_stellar")
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -73,7 +78,12 @@ class RecolectorAdmin(admin.ModelAdmin):
 @admin.register(Punto)
 class PuntoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "operador", "cantidad_promedio", "comision_por_balde")
-    search_fields = ("nombre", "operador__nombre")
+    search_fields = (
+        "nombre",
+        "operador__user__username",
+        "operador__user__first_name",
+        "operador__user__last_name",
+    )
     ordering = ("nombre",)
 
     def get_queryset(self, request):

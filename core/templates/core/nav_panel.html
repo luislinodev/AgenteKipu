@@ -1,5 +1,6 @@
 {% if rol == "operador" %}
     {% url "panel_operador" as href_rutas %}
+    {% url "puntos_operador" as href_puntos %}
     {% url "pagos_operador" as href_pagos %}
 {% else %}
     {% url "panel_recolector" as href_rutas %}
@@ -10,7 +11,12 @@
     {% if actor %}
         <span class="nav-actor">{{ actor }}</span>
     {% endif %}
-    <a href="{{ href_rutas }}" class="btn btn-ghost{% if nombre != 'pagos_operador' and nombre != 'pagos_recolector' %} is-active{% endif %}"{% if nombre != 'pagos_operador' and nombre != 'pagos_recolector' %} aria-current="page"{% endif %}>Rutas</a>
+    {% if rol == "operador" %}
+        <a href="{{ href_rutas }}" class="btn btn-ghost{% if nombre == 'panel_operador' or nombre == 'detalle_ruta_operador' or nombre == 'crear_ruta_operador' %} is-active{% endif %}"{% if nombre == 'panel_operador' or nombre == 'detalle_ruta_operador' or nombre == 'crear_ruta_operador' %} aria-current="page"{% endif %}>Rutas</a>
+        <a href="{{ href_puntos }}" class="btn btn-ghost{% if nombre == 'puntos_operador' or nombre == 'crear_punto_operador' %} is-active{% endif %}"{% if nombre == 'puntos_operador' or nombre == 'crear_punto_operador' %} aria-current="page"{% endif %}>Puntos</a>
+    {% else %}
+        <a href="{{ href_rutas }}" class="btn btn-ghost{% if nombre != 'pagos_recolector' %} is-active{% endif %}"{% if nombre != 'pagos_recolector' %} aria-current="page"{% endif %}>Rutas</a>
+    {% endif %}
     <a href="{{ href_pagos }}" class="btn btn-ghost{% if nombre == 'pagos_operador' or nombre == 'pagos_recolector' %} is-active{% endif %}"{% if nombre == 'pagos_operador' or nombre == 'pagos_recolector' %} aria-current="page"{% endif %}>Pagos</a>
     {% if not sin_salir %}
         <form method="post" action="{% url 'logout' %}">

@@ -109,6 +109,11 @@
             }
         }
 
+        const proceder = root.querySelector("[data-live-proceder]");
+        if (proceder) {
+            proceder.hidden = !data.puede_proceder_pago;
+        }
+
         const conFoto = root.querySelector("[data-live-con-foto]");
         const sinFoto = root.querySelector("[data-live-sin-foto]");
         const img = root.querySelector('[data-live="foto"]');
@@ -146,15 +151,10 @@
         tdLocal.dataset.label = "Local";
         tdLocal.textContent = ruta.nombre_local;
 
-        const tdInicio = document.createElement("td");
-        tdInicio.dataset.label = "Inicio";
-        tdInicio.dataset.live = "inicio";
-        tdInicio.textContent = ruta.inicio;
-
-        const tdFin = document.createElement("td");
-        tdFin.dataset.label = "Fin";
-        tdFin.dataset.live = "fin";
-        tdFin.textContent = ruta.fin;
+        const tdFecha = document.createElement("td");
+        tdFecha.dataset.label = "Fecha";
+        tdFecha.dataset.live = "fecha";
+        tdFecha.textContent = ruta.inicio;
 
         const tdEstado = document.createElement("td");
         tdEstado.dataset.label = "Estado";
@@ -168,20 +168,20 @@
         tdAcciones.dataset.live = "acciones";
         fillRecolectorAcciones(tdAcciones, ruta);
 
-        tr.append(tdLocal, tdInicio, tdFin, tdEstado, tdAcciones);
+        tr.append(tdLocal, tdFecha, tdEstado, tdAcciones);
         return tr;
     }
 
     function fillRecolectorAcciones(td, ruta) {
         td.replaceChildren();
-        if (ruta.tiene_foto) {
-            const span = document.createElement("span");
-            span.className = "muted";
-            span.textContent = "Foto cargada";
-            td.appendChild(span);
-            return;
+        if (ruta.detalle_url) {
+            const detalle = document.createElement("a");
+            detalle.dataset.live = "detalle";
+            detalle.href = ruta.detalle_url;
+            detalle.textContent = "Detalles";
+            td.appendChild(detalle);
         }
-        if (ruta.puede_subir && ruta.subir_url) {
+        if (!ruta.tiene_foto && ruta.puede_subir && ruta.subir_url) {
             const link = document.createElement("a");
             link.href = ruta.subir_url;
             link.textContent = "Subir foto";
@@ -207,8 +207,7 @@
             if (!tr) {
                 return;
             }
-            setText(tr.querySelector('[data-live="inicio"]'), ruta.inicio);
-            setText(tr.querySelector('[data-live="fin"]'), ruta.fin);
+            setText(tr.querySelector('[data-live="fecha"]'), ruta.inicio);
             setEstado(
                 tr.querySelector('[data-live="estado"]'),
                 ruta.estado,
@@ -216,11 +215,9 @@
             );
             const acciones = tr.querySelector('[data-live="acciones"]');
             if (acciones) {
-                const hasFoto = Boolean(acciones.querySelector(".muted"));
-                const hasLink = Boolean(acciones.querySelector("a"));
-                const wantFoto = Boolean(ruta.tiene_foto);
-                const wantLink = Boolean(ruta.puede_subir && ruta.subir_url);
-                if (hasFoto !== wantFoto || hasLink !== wantLink) {
+                const hasSubir = Boolean(acciones.querySelector('a[href*="/foto/"]'));
+                const wantSubir = Boolean(!ruta.tiene_foto && ruta.puede_subir && ruta.subir_url);
+                if (hasSubir !== wantSubir) {
                     fillRecolectorAcciones(acciones, ruta);
                     flash(acciones);
                 }

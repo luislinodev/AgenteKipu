@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+
+{% block title %}Puntos de recojo — AgenteKipu{% endblock %}
+
+{% block nav %}
+{% include "core/nav_panel.html" with actor=operador rol="operador" %}
+{% endblock %}
+
+{% block content %}
+    <h2>Puntos de recojo</h2>
+    <p class="lead">Cada punto es un local que se reusa en las rutas. La cantidad promedio y la comisión se usan cuando el recolector entrega más baldes de lo habitual.</p>
+
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if puntos %}
+        <p class="section-action"><a class="btn" href="{% url 'crear_punto_operador' %}">Añadir nuevo punto de recojo</a></p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Local</th>
+                        <th>Cantidad promedio</th>
+                        <th>Comisión por balde</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for punto in puntos %}
+                        <tr>
+                            <td data-label="Local">{{ punto.nombre }}</td>
+                            <td data-label="Cantidad promedio">{{ punto.cantidad_promedio }}</td>
+                            <td data-label="Comisión por balde">{{ punto.comision_por_balde }} XLM</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="section-action"><a class="btn" href="{% url 'crear_punto_operador' %}">Crear punto de recojo</a></p>
+    {% endif %}
+{% endblock %}

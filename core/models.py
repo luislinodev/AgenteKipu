@@ -32,7 +32,6 @@ class Operador(models.Model):
         on_delete=models.PROTECT,
         related_name="operador",
     )
-    nombre = models.CharField(max_length=120)
     direccion_stellar = models.CharField(
         max_length=56,
         verbose_name="clave pública",
@@ -40,10 +39,12 @@ class Operador(models.Model):
     )
 
     class Meta:
-        ordering = ["nombre"]
+        ordering = ["user__username"]
 
     def __str__(self):
-        return self.nombre
+        if not self.user_id:
+            return "Operador"
+        return (self.user.get_full_name() or "").strip() or self.user.username
 
     def clean(self):
         super().clean()
@@ -114,6 +115,7 @@ class Ruta(models.Model):
         PENDIENTE = "pendiente", "Pendiente"
         CONFIRMADO = "confirmado", "Confirmado"
         EN_REVISION = "en_revision", "En revisión"
+        RECHAZADO = "rechazado", "Rechazado"
         PAGADO = "pagado", "Pagado"
 
     class Confirmacion(models.TextChoices):

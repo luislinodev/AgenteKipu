@@ -4,13 +4,21 @@
 {% block title %}Rutas — AgenteKipu{% endblock %}
 
 {% block nav %}
-{% include "core/nav_panel.html" with actor=operador.nombre rol="operador" %}
+{% include "core/nav_panel.html" with actor=operador rol="operador" %}
 {% endblock %}
 
 {% block content %}
     <h2>Rutas</h2>
     <p class="lead">Cada ruta es un local, un recolector, un monto y una fecha. Abrí una para ver la foto y copiar el link de confirmación. Los pagos enviados están en Pagos. Este panel no paga ni desbloquea.</p>
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
     {% if rutas %}
+        <p class="section-action"><a class="btn" href="{% url 'crear_ruta_operador' %}">Crear nueva ruta</a></p>
         <div class="table-wrap" data-live-url="{% url 'estado_panel_operador' %}" data-live-kind="panel-operador" data-live-interval="3000">
             <table>
                 <thead>
@@ -36,7 +44,7 @@
             </table>
         </div>
     {% else %}
-        <p class="muted">No hay rutas todavía. Primero cargá los locales en Puntos y después creá la ruta en el admin.</p>
+        <p class="section-action"><a class="btn" href="{% url 'crear_ruta_operador' %}">Crear ruta</a></p>
     {% endif %}
 {% endblock %}
 

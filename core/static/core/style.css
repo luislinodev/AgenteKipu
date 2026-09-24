@@ -231,6 +231,10 @@ h3 {
     max-width: 62ch;
 }
 
+.section-action {
+    margin: -0.4rem 0 1.25rem;
+}
+
 @media (min-width: 900px) {
     .lead {
         max-width: none;
@@ -569,6 +573,11 @@ button.danger:hover,
     gap: 0.75rem;
     margin-top: 0.5rem;
     flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.confirm-actions form {
+    margin: 0;
 }
 
 fieldset {
@@ -590,6 +599,10 @@ fieldset {
 
 .card p {
     margin: 0.4rem 0;
+}
+
+.aviso .section-action {
+    margin: 0.85rem 0 0;
 }
 
 .card-row {
@@ -763,6 +776,34 @@ fieldset {
 .estado-en_revision {
     color: var(--warn);
     background: var(--warn-soft);
+}
+
+.estado-rechazado {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.motivo-rechazo {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.9rem;
+}
+
+.motivo-rechazo label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.motivo-rechazo textarea {
+    width: 100%;
+    min-height: 6rem;
+    font: inherit;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
 }
 
 .estado-pagada,

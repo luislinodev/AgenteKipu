@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ ruta.punto.nombre }} — AgenteKipu{% endblock %}
+
+{% block nav %}
+{% include "core/nav_panel.html" with actor=recolector.nombre rol="recolector" %}
+{% endblock %}
+
+{% block content %}
+    {# Recolector: no incluir token_confirmacion ni url de confirmar_punto. #}
+    <h2>{{ ruta.punto.nombre }}</h2>
+    <p class="lead">Detalle de tu ruta. Si el operador rechazó el pago, acá está la razón.</p>
+
+    <div class="card-row">
+        <section class="card">
+            <p><strong>Creada:</strong> {{ ruta.creado_en|fecha_hora_display }}</p>
+            <p><strong>Procesada:</strong> {{ ruta.procesado_en|fecha_hora_display }}</p>
+            <p><strong>Monto:</strong> {{ ruta.monto }} XLM</p>
+            <p><strong>Baldes reportados:</strong> {% if ruta.cantidad_baldes is not None %}{{ ruta.cantidad_baldes }}{% else %}—{% endif %}</p>
+            <p><strong>Estado:</strong> <span class="estado estado-{{ ruta.estado }}">{{ ruta.get_estado_display }}</span></p>
+        </section>
+
+        <section class="card">
+            <h3>Motivo de no pago</h3>
+            {% if ruta.estado == "rechazado" %}
+                <p>El operador rechazó el pago de esta ruta. No se transfiere el monto.</p>
+                <p><strong>Razón:</strong> {{ motivo_no_pago|default:"Sin razón escrita." }}</p>
+            {% else %}
+                <p class="muted">Esta ruta no está rechazada.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <p><a href="{% url 'panel_recolector' %}">Volver a mis rutas</a></p>
+{% endblock %}

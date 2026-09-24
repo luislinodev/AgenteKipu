@@ -24,7 +24,7 @@ class _OrdenPago:
 
 
 def _marcar_en_revision(ruta, motivo):
-    if ruta.estado == Ruta.Estado.PAGADO:
+    if ruta.estado in (Ruta.Estado.PAGADO, Ruta.Estado.RECHAZADO):
         return
     if ruta.estado == Ruta.Estado.EN_REVISION and ruta.motivo_no_pago == motivo:
         return
@@ -37,8 +37,8 @@ def _marcar_en_revision(ruta, motivo):
 
 
 @receiver(post_save, sender=Ruta)
-def intentar_pago_si_corresponde(sender, instance, **kwargs):
-    if instance.estado == Ruta.Estado.PAGADO:
+def intentar_pago_si_corresponde(sender, instance, forzar_conteo=False, **kwargs):
+    if instance.estado in (Ruta.Estado.PAGADO, Ruta.Estado.RECHAZADO):
         return
 
     if Payment.objects.filter(ruta=instance).exists():
@@ -55,21 +55,21 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         _marcar_en_revision(instance, "El punto confirmó No.")
         return
 
-    if instance.gemini_error:
+    if not forzar_conteo and instance.gemini_error:
         _marcar_en_revision(
             instance,
             "Gemini falló; el punto no se paga solo.",
         )
         return
 
-    if instance.gemini_consistente is False:
+    if not forzar_conteo and instance.gemini_consistente is False:
         _marcar_en_revision(
             instance,
             "El conteo de Gemini no es consistente con lo reportado.",
         )
         return
 
-    if instance.gemini_consistente is not True:
+    if not forzar_conteo and instance.gemini_consistente is not True:
         if instance.estado == Ruta.Estado.PENDIENTE:
             Ruta.objects.filter(pk=instance.pk).update(
                 estado=Ruta.Estado.CONFIRMADO
@@ -100,8 +100,12 @@ def intentar_pago_si_corresponde(sender, instance, **kwargs):
         payment.tx_hash = tx_hash
         payment.estado = "completado"
         payment.save(update_fields=["tx_hash", "estado"])
-        Ruta.objects.filter(pk=instance.pk).update(estado=Ruta.Estado.PAGADO)
+        Ruta.objects.filter(pk=instance.pk).update(
+            estado=Ruta.Estado.PAGADO,
+            motivo_no_pago="",
+        )
         instance.estado = Ruta.Estado.PAGADO
+        instance.motivo_no_pago = ""
         instance.pago_ok = tx_hash
         logger.info(
             "Pago enviado para ruta %s. hash=%s monto=%s",

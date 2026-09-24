@@ -16,8 +16,14 @@ MODELO_GEMINI = "gemini-3.6-flash"
 TOLERANCIA_BALDES = 0
 TIMEOUT_MS = 15_000
 PROMPT = (
-    "Cuenta cuántos baldes o bidones ves en esta imagen. "
-    "Responde solo con un número entero, sin texto extra."
+    "Contá los baldes o bidones de la carga que se está entregando, "
+    "el grupo junto a la cámara. "
+    "Incluí los que están uno al lado del otro, en filas, "
+    "y los que quedan detrás o tapados en parte por otros de ese mismo grupo. "
+    "No hace falta que estén apilados uno encima de otro. "
+    "No cuentes baldes sueltos, lejos, desenfocados o contra el fondo de la escena, "
+    "que no forman parte de esa carga. "
+    "Respondé solo con un número entero, sin texto extra."
 )
 
 
@@ -62,6 +68,7 @@ def chequear_consistencia(
                 PROMPT,
                 types.Part.from_bytes(data=foto_bytes, mime_type=mime_type),
             ],
+            config=types.GenerateContentConfig(temperature=0),
         )
         texto = (response.text or "").strip()
     except Exception as exc:

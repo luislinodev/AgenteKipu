@@ -26,8 +26,7 @@
                 <thead>
                     <tr>
                         <th>Local</th>
-                        <th>Inicio</th>
-                        <th>Fin</th>
+                        <th>Fecha</th>
                         <th>Estado</th>
                         <th></th>
                     </tr>
@@ -36,13 +35,11 @@
                     {% for ruta in rutas %}
                         <tr data-ruta-id="{{ ruta.id }}">
                             <td data-label="Local">{{ ruta.punto.nombre }}</td>
-                            <td data-label="Inicio" data-live="inicio">{{ ruta.creado_en|fecha_hora_display }}</td>
-                            <td data-label="Fin" data-live="fin">{{ ruta.procesado_en|fecha_hora_display }}</td>
+                            <td data-label="Fecha" data-live="fecha">{{ ruta.creado_en|fecha_hora_display }}</td>
                             <td data-label="Estado"><span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></td>
                             <td class="acciones" data-live="acciones">
-                                {% if ruta.foto %}
-                                    <span class="muted">Foto cargada</span>
-                                {% elif ruta.estado != "pagado" and not ruta.confirmacion %}
+                                <a data-live="detalle" href="{% url 'detalle_ruta_recolector' ruta.id %}">Detalles</a>
+                                {% if not ruta.foto and ruta.estado != "pagado" and not ruta.confirmacion %}
                                     <a href="{% url 'subir_foto' ruta.id %}">Subir foto</a>
                                 {% endif %}
                             </td>
