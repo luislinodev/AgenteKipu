@@ -288,7 +288,7 @@ class CatalogoYRutaTests(TestCase):
         self.client.force_login(self.op_user)
         detalle = self.client.get(reverse("detalle_ruta_operador", args=[self.ruta.pk]))
         self.assertContains(detalle, "¿Proceder con el pago?")
-        self.assertContains(detalle, 'name="decision" value="si"')
+        self.assertContains(detalle, "Enviar pago")
         estado = self.client.get(reverse("estado_ruta_operador", args=[self.ruta.pk]))
         self.assertTrue(estado.json()["puede_proceder_pago"])
 

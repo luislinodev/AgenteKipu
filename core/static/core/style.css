@@ -405,6 +405,12 @@ tr:last-child td {
         padding: 0.75rem 1rem 0.9rem;
     }
 
+    .table-wrap td.acciones .fila-acciones {
+        display: flex;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
     .table-wrap td.acciones:not(:has(a, span)) {
         display: none;
     }
@@ -432,11 +438,45 @@ tr:last-child td {
     }
 }
 
-.acciones {
-    display: flex;
-    gap: 0.75rem;
+td.acciones {
+    white-space: nowrap;
+    text-align: right;
+    width: 1%;
+}
+
+.fila-acciones {
+    display: inline-flex;
     align-items: center;
-    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.fila-acciones .accion {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-decoration: none;
+}
+
+.fila-acciones .accion:hover {
+    background: var(--surface-alt);
+    text-decoration: none;
+}
+
+.fila-acciones .accion-foto {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+    border-color: transparent;
+}
+
+.fila-acciones .accion-foto:hover {
+    background: #d4efe6;
 }
 
 td[data-label="Fecha"],
@@ -609,6 +649,7 @@ fieldset {
     display: flex;
     gap: 1rem;
     align-items: flex-start;
+    margin-bottom: 1rem;
 }
 
 @media (min-width: 720px) {
@@ -786,6 +827,17 @@ fieldset {
 .motivo-rechazo {
     display: grid;
     gap: 0.4rem;
+    margin-top: 0.9rem;
+}
+
+.motivo-rechazo[hidden],
+.accion-confirmar[hidden] {
+    display: none;
+}
+
+.accion-confirmar {
+    display: block;
+    width: 100%;
     margin-top: 0.9rem;
 }
 

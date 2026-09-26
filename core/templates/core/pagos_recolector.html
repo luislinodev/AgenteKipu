@@ -41,7 +41,9 @@
                             <td data-label="Comisión">{{ pago.comision }} XLM</td>
                             <td class="acciones">
                                 {% if pago.tx_hash %}
-                                    <a href="https://stellar.expert/explorer/testnet/tx/{{ pago.tx_hash }}" target="_blank" rel="noopener noreferrer">Ver transferencia</a>
+                                    <span class="fila-acciones">
+                                        <a class="accion" href="https://stellar.expert/explorer/testnet/tx/{{ pago.tx_hash }}" target="_blank" rel="noopener noreferrer">Ver transferencia</a>
+                                    </span>
                                 {% else %}
                                     <span class="muted">—</span>
                                 {% endif %}

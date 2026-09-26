@@ -64,19 +64,17 @@
         <p>Gemini no coincidió con el conteo, pero el local confirmó que sí. Si en la foto hay los baldes reportados, el pago sale igual: el monto de la ruta y la comisión, si corresponde.</p>
         <p><strong>¿Proceder con el pago?</strong></p>
         <div class="confirm-actions">
-            <form method="post" action="{% url 'proceder_pago_operador' ruta.id %}">
-                {% csrf_token %}
-                <button type="submit" name="decision" value="si">Sí</button>
-            </form>
-            <button type="button" class="secondary" data-mostrar-rechazo form="form-rechazo">No</button>
+            <button type="button" data-decision="si" class="secondary" aria-pressed="false">Sí</button>
+            <button type="button" data-decision="no" class="{% if not mostrar_rechazo %}secondary{% endif %}" aria-pressed="{% if mostrar_rechazo %}true{% else %}false{% endif %}">No</button>
         </div>
-        <form id="form-rechazo" method="post" action="{% url 'proceder_pago_operador' ruta.id %}">
+        <form method="post" action="{% url 'proceder_pago_operador' ruta.id %}">
             {% csrf_token %}
+            <input type="hidden" name="decision" value="{% if mostrar_rechazo %}no{% endif %}" data-decision-valor>
             <div class="motivo-rechazo" data-motivo-rechazo {% if not mostrar_rechazo %}hidden{% endif %}>
                 <label for="motivo-no-pago">Motivo del no pago</label>
                 <textarea id="motivo-no-pago" name="motivo"{% if mostrar_rechazo %} required{% endif %}>{{ motivo_rechazo }}</textarea>
-                <button type="submit" name="decision" value="no" class="secondary">Rechazar pago</button>
             </div>
+            <button type="submit" class="accion-confirmar{% if mostrar_rechazo %} secondary{% else %} es-pago{% endif %}" data-boton-confirmar {% if not mostrar_rechazo %}hidden{% endif %}>{% if mostrar_rechazo %}Rechazar pago{% else %}Enviar pago{% endif %}</button>
         </form>
     </section>
 {% endblock %}
@@ -84,20 +82,64 @@
 {% block scripts %}
 <script src="{% static 'core/live.js' %}" defer></script>
 <script>
-    document.querySelectorAll("[data-mostrar-rechazo]").forEach(function (boton) {
-        boton.addEventListener("click", function () {
-            var form = boton.form || boton.closest("form");
-            var caja = form ? form.querySelector("[data-motivo-rechazo]") : null;
-            if (!caja) {
-                return;
-            }
-            caja.hidden = false;
-            var motivo = caja.querySelector("textarea");
+    var botonSi = document.querySelector("[data-decision='si']");
+    var botonNo = document.querySelector("[data-decision='no']");
+    var cajaRechazo = document.querySelector("[data-motivo-rechazo]");
+    var botonConfirmar = document.querySelector("[data-boton-confirmar]");
+    var valorDecision = document.querySelector("[data-decision-valor]");
+
+    function pintar(elegido, otro) {
+        elegido.classList.remove("secondary");
+        elegido.setAttribute("aria-pressed", "true");
+        otro.classList.add("secondary");
+        otro.setAttribute("aria-pressed", "false");
+    }
+
+    function marcarSi() {
+        pintar(botonSi, botonNo);
+        if (cajaRechazo) {
+            cajaRechazo.hidden = true;
+            var motivo = cajaRechazo.querySelector("textarea");
             if (motivo) {
-                motivo.required = true;
-                motivo.focus();
+                motivo.required = false;
             }
-        });
-    });
+        }
+        if (valorDecision) {
+            valorDecision.value = "si";
+        }
+        if (botonConfirmar) {
+            botonConfirmar.hidden = false;
+            botonConfirmar.textContent = "Enviar pago";
+            botonConfirmar.classList.remove("secondary");
+        }
+    }
+
+    function marcarNo() {
+        pintar(botonNo, botonSi);
+        if (valorDecision) {
+            valorDecision.value = "no";
+        }
+        if (botonConfirmar) {
+            botonConfirmar.hidden = false;
+            botonConfirmar.textContent = "Rechazar pago";
+            botonConfirmar.classList.add("secondary");
+        }
+        if (!cajaRechazo) {
+            return;
+        }
+        cajaRechazo.hidden = false;
+        var motivo = cajaRechazo.querySelector("textarea");
+        if (motivo) {
+            motivo.required = true;
+            motivo.focus();
+        }
+    }
+
+    if (botonSi) {
+        botonSi.addEventListener("click", marcarSi);
+    }
+    if (botonNo) {
+        botonNo.addEventListener("click", marcarNo);
+    }
 </script>
 {% endblock %}

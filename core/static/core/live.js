@@ -174,19 +174,24 @@
 
     function fillRecolectorAcciones(td, ruta) {
         td.replaceChildren();
+        const grupo = document.createElement("span");
+        grupo.className = "fila-acciones";
         if (ruta.detalle_url) {
             const detalle = document.createElement("a");
+            detalle.className = "accion";
             detalle.dataset.live = "detalle";
             detalle.href = ruta.detalle_url;
             detalle.textContent = "Detalles";
-            td.appendChild(detalle);
+            grupo.appendChild(detalle);
         }
         if (!ruta.tiene_foto && ruta.puede_subir && ruta.subir_url) {
             const link = document.createElement("a");
+            link.className = "accion accion-foto";
             link.href = ruta.subir_url;
             link.textContent = "Subir foto";
-            td.appendChild(link);
+            grupo.appendChild(link);
         }
+        td.appendChild(grupo);
     }
 
     function applyRecolector(data) {
@@ -322,7 +327,15 @@
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.textContent = "Ver transferencia";
-            tdTx.appendChild(link);
+            if (!operador) {
+                link.className = "accion";
+                const grupo = document.createElement("span");
+                grupo.className = "fila-acciones";
+                grupo.appendChild(link);
+                tdTx.appendChild(grupo);
+            } else {
+                tdTx.appendChild(link);
+            }
         } else {
             const span = document.createElement("span");
             span.className = "muted";

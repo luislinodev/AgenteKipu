@@ -8,11 +8,13 @@ Un agente que paga en Stellar testnet **solo cuando un tercero independiente del
 
 Tres actores, tres reglas:
 
-- **Operador** crea la ruta (local, recolector, monto, fecha).
-- **Recolector** reporta la entrega y sube una foto.
-- **Tercero** (el punto de origen, sin cuenta, con un link único) confirma Sí/No — **una sola vez, sin posibilidad de reabrir**.
+- **Operador** carga locales (puntos de recojo) y arma cada visita (ruta): recolector, monto base y fecha.
+- **Recolector** reporta la entrega y sube una foto, una sola vez.
+- **Dueño del local** (sin cuenta, con un link único) confirma Sí/No — **una sola vez, sin posibilidad de reabrir**.
 
-El pago sale automáticamente solo si el tercero confirma **y** una foto pasa un chequeo de consistencia por IA (Gemini). Gemini es una señal de respaldo probabilística — puede equivocarse — nunca la que decide sola. La señal decisiva es siempre el sí/no humano del tercero.
+El pago automático sale solo si el local confirma **Sí** y Gemini cuenta los mismos baldes que el recolector reportó. Gemini es una señal de respaldo probabilística — puede equivocarse — y no decide sola. Si el local dijo Sí y el conteo no cuadra, la ruta queda en revisión: el operador mira la foto y **envía el pago igual** o **lo rechaza con un motivo**. Un pago ya enviado no se revierte.
+
+La comisión por volumen se calcula sobre los baldes reportados de **esa** visita, por encima del promedio del local, y se suma al monto base en el mismo pago. Si la visita no supera el promedio, se paga solo el monto base.
 
 Este mecanismo no depende del material recolectado. Lo que sí está calibrado para el piloto es el chequeo de foto (contar baldes).
 
@@ -26,46 +28,50 @@ El sistema debía haber hecho innecesaria esa casualidad: **el pago no puede dep
 
 ```mermaid
 flowchart LR
-    A["Operador crea Puntos (catálogo)<br/>y Rutas (visita) vía /admin/"] --> B[("(Base de datos<br/>Django ORM)")]
+    A["Operador crea Puntos y Rutas<br/>en /operador/"] --> B[("(Base de datos<br/>Django ORM)")]
     C["Recolector sube foto + cantidad<br/>en /recolector/"] --> B
-    C --> D["API Gemini:<br/>chequeo de consistencia<br/>conteo = reportado"]
+    C --> D["API Gemini:<br/>conteo = reportado"]
     D --> B
-    C --> E["Sistema genera token y link único<br/>/confirmar/token/ → se lo muestra al Operador en /operador/"]
-    E --> F["Operador reenvía el link<br/>al Proveedor de punto por WhatsApp"]
-    F --> G["Punto confirma Sí/No una sola vez<br/>sin necesidad de cuenta"]
+    C --> E["Link único /confirmar/token/<br/>solo visible en /operador/"]
+    E --> F["Operador reenvía el link<br/>al dueño del local por WhatsApp"]
+    F --> G["Local confirma Sí/No<br/>una sola vez, sin cuenta"]
     G --> B
-    B --> H{"Agente revisa:<br/>¿confirmó el Punto?<br/>¿Gemini es consistente?"}
-    H -- Sí --> I["stellar-sdk Python:<br/>construye y firma TX"]
+    B --> H{"¿Confirmó Sí<br/>y Gemini cuadra?"}
+    H -- Sí --> I["stellar-sdk:<br/>monto base + comisión"]
     I --> J["Horizon Testnet Stellar"]
-    J --> K["Pago registrado<br/>en Payment + hash TX"]
+    J --> K["Payment + hash TX<br/>Ruta pagada"]
+    H -- "Sí, pero Gemini no cuadra" --> M["Operador decide:<br/>pagar igual o rechazar"]
+    M -- Pagar --> I
+    M -- Rechazar --> N["Ruta rechazada<br/>con motivo"]
     H -- No --> L["Queda en revisión<br/>con motivo_no_pago"]
 ```
 
-1. El Operador carga el local y crea la ruta desde `/admin/` (scope: construir una UI propia no suma al mecanismo anti-fraude).
-2. El Recolector sube foto + cantidad reportada en `/recolector/`. Sin GPS: es falsificable desde el navegador y no resuelve el problema real.
-3. La foto dispara dos cosas en paralelo: el chequeo de Gemini, y la generación de un link secreto de confirmación que se le muestra **solo al Operador** (nunca al Recolector — si pudiera verlo, se confirmaría a sí mismo).
-4. El Operador reenvía el link al Proveedor de punto por WhatsApp (manual, sin Twilio).
-5. El Proveedor confirma Sí/No, de una sola vez. `signals.py` combina ambas señales: si el punto dijo Sí y Gemini cuadra, `stellar_agent.py` firma y envía el pago. Si no, la ruta queda en revisión con `motivo_no_pago` — nadie, ni el equipo, puede pagar manualmente ni revertir un pago ya enviado.
+1. En `/admin/` se dan de alta el **Operador** (usuario + clave pública Stellar) y el **Recolector** (usuario + clave pública que recibe el pago). El nombre del recolector sale del usuario.
+2. El operador entra en `/operador/` y crea **puntos** (nombre, cantidad promedio, comisión por balde extra) y **rutas** (punto, recolector, monto base en XLM, fecha). El admin sigue sirviendo para lo mismo, acotado a las rutas de ese operador.
+3. El recolector, en `/recolector/`, sube foto + cantidad **una sola vez**. Eso genera el token (`secrets.token_urlsafe(32)`) y llama a Gemini en el mismo request. Sin GPS: es falsificable desde el navegador y no resuelve el problema real.
+4. El link `/confirmar/<token>/` se muestra **solo al operador**. El recolector no lo recibe. El operador lo reenvía por WhatsApp (manual, sin Twilio).
+5. El dueño del local responde Sí/No, de una sola vez, aunque Gemini haya fallado o no cuadre. Un segundo POST no pisa la decisión.
+6. `signals.py` combina las señales:
+   - **Sí + Gemini consistente:** paga solo. El monto es el de la ruta más la comisión: `(baldes reportados − promedio del local) × comisión por balde`, si el excedente es positivo. Esa comisión queda guardada en el `Payment` y no cambia si después se edita el punto.
+   - **No**, error de Gemini, o fallo de fondos/Horizon: la ruta queda `en_revision` con `motivo_no_pago`. No hay pago.
+   - **Sí + conteo de Gemini distinto:** no paga solo. En el detalle de la ruta el operador puede enviar el pago igual (misma fórmula de comisión, sobre lo reportado) o rechazarla. El rechazo exige un motivo; el recolector lo ve en su ruta. El estado pasa a `rechazado`.
 
-**Qué no cubre todavía:** el bono por volumen acumulado, que fue el mecanismo real del fraude de Luis. Hoy cada ruta paga un monto fijo; un recolector que reparte volumen desviado entre varias rutas pequeñas no dispara alerta. El diseño de esta regla (umbral sobre volumen *confirmado*, no reportado) está pensado pero no implementado — ver [`docs/architecture.md`](docs/architecture.md).
+Los paneles de operador, recolector y la página de confirmación consultan un JSON de estado cada 3 segundos. En Pagos se ve el historial, la comisión, el enlace a `stellar.expert` y el saldo XLM (la wallet que paga, derivada de `STELLAR_SECRET_KEY`, o la del recolector).
 
 ## Por qué esto no es "otra app de logística"
 
-Confirmación por un tercero no es una idea nueva — es el patrón de cualquier escrow. Lo que no es trivial es a quién convertís en ese tercero. La mayoría de oráculos on-chain asumen una contraparte con wallet o app instalada. El Proveedor de punto de AgenteKipu es el dueño de un restaurante informal que nunca usó cripto: confirma con un link, sin cuenta, una sola vez. Diseñar el oráculo para gente sin infraestructura digital previa es el problema real.
+Confirmación por un tercero no es una idea nueva — es el patrón de cualquier escrow. Lo que no es trivial es a quién convertís en ese tercero. La mayoría de oráculos on-chain asumen una contraparte con wallet o app instalada. El dueño del local en AgenteKipu confirma con un link, sin cuenta, una sola vez.
 
-La irreversibilidad tampoco vale por sí sola — un backend tradicional con buenos controles de acceso logra lo mismo. Vale porque es **verificable por fuera del propio sistema**: cualquiera confirma un pago en `stellar.expert` sin confiar en la palabra del equipo. AgenteKipu no solo le quita la palabra al recolector — se la quita también al operador y al propio equipo, una vez que el pago sale.
+La irreversibilidad tampoco vale por sí sola — un backend tradicional con buenos controles de acceso logra lo mismo. Vale porque es **verificable por fuera del propio sistema**: cualquiera confirma un pago en `stellar.expert` sin confiar en la palabra del equipo. Un pago enviado no se revierte desde la app.
 
-Y el agente nunca actúa con una sola señal débil: dispara la ejecución solo cuando coinciden una señal probabilística (Gemini) y una determinística (el sí/no humano, irreversible). Esa combinación es la decisión de diseño de agente que importa acá.
+El agente automático no actúa con una sola señal débil: dispara la ejecución solo cuando coinciden una señal probabilística (Gemini) y una determinística (el sí/no humano, irreversible). Cuando esas dos no coinciden, no inventa un pago: deja la decisión al operador, con la foto a la vista.
 
 ## Límites conocidos
 
-- **Bono por volumen** (el fraude original): no implementado — ver arriba y `docs/architecture.md`.
-- **El trust gap se mueve, no desaparece:** el link pasa del sistema al Operador, y de ahí al Proveedor por WhatsApp manual. AgenteKipu cierra el problema de confianza en el Recolector — no cierra por completo el del Operador, que podría reenviarse el link a sí mismo haciéndose pasar por el punto.
-- **Alcance:** el aceite usado tiene un fraude real documentado detrás. La misma estructura aplicaría en principio a otras redes de acopio informal, pero no hay evidencia de fraude documentada fuera de este caso — no se presenta como solución genérica de logística.
-
-## Arquitectura
-
-Detalle técnico completo (modelos Punto/Ruta/Payment, dónde vive cada regla) en [`docs/architecture.md`](docs/architecture.md).
+- **La comisión es por visita, contra el promedio de ese local.** Repartir volumen desviado en varias visitas chicas, cada una por debajo del promedio, no suma comisión. No hay un umbral acumulado entre rutas.
+- **El trust gap se mueve, no desaparece.** El link pasa del sistema al operador, y de ahí al local por WhatsApp. El operador podría reenviarse el link a sí mismo. También puede pagar cuando Gemini no cuadra.
+- **Si Gemini falla** (sin API key, timeout, respuesta no parseable), la ruta queda en revisión y el operador no tiene el botón de proceder: ese botón solo aparece cuando Gemini devolvió un conteo distinto al reportado.
+- **Alcance:** el aceite usado tiene un fraude real documentado detrás. La misma estructura aplicaría en principio a otras redes de acopio informal, pero no hay evidencia de fraude documentada fuera de este caso.
 
 ## Stack
 
@@ -73,11 +79,19 @@ Detalle técnico completo (modelos Punto/Ruta/Payment, dónde vive cada regla) e
 |---|---|
 | Backend | Django + SQLite |
 | Stellar | `stellar-sdk` (Python), pagos nativos en Horizon Testnet |
-| IA | API de Gemini (consistencia de la foto) |
-| Frontend | Templates Django + CSS |
+| IA | API de Gemini (`gemini-3.6-flash`), consistencia de la foto |
+| Frontend | Templates Django + CSS; paneles con sondeo cada 3 s |
 | Explorador | [stellar.expert testnet](https://stellar.expert/explorer/testnet) |
 
-Fuera de alcance en esta versión: Celery, contratos Soroban, GPS, marketplace de rutas, Twilio / WhatsApp Business.
+Fuera de alcance: Celery, contratos Soroban, GPS, marketplace de rutas, Twilio / WhatsApp Business.
+
+| Pieza | Archivo |
+|---|---|
+| Reglas de pago | `core/signals.py` |
+| Firma y envío Stellar | `core/stellar_agent.py` |
+| Chequeo de foto | `core/gemini_check.py` |
+| Paneles, alta de puntos/rutas, confirmación | `core/views.py` |
+| Modelos | `core/models.py` |
 
 ## Cómo ejecutarlo
 
@@ -95,12 +109,12 @@ Completa `.env` (nunca subas el archivo real):
 ```
 SECRET_KEY=...
 DEBUG=True
-STELLAR_SECRET_KEY=           # clave secreta de la cuenta pagadora en testnet
+STELLAR_SECRET_KEY=           # clave secreta de la cuenta que paga, en testnet
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
 GEMINI_API_KEY=               # Google AI Studio; solo para el chequeo de consistencia
 ```
 
-El agente siempre firma para testnet (`Network.TESTNET_NETWORK_PASSPHRASE`). Lee `STELLAR_HORIZON_URL`.
+El agente siempre firma para testnet (`Network.TESTNET_NETWORK_PASSPHRASE`). Lee `STELLAR_HORIZON_URL`. El destino de cada pago es la clave pública del recolector. La clave pública del operador (empieza con `G`) se carga en el admin y es la que el panel enlaza en stellar.expert; tiene que ser la pareja de `STELLAR_SECRET_KEY`.
 
 Genera y fondea una wallet de testnet (imprime clave pública y secreta; guarda la secreta en `.env`):
 
@@ -112,10 +126,11 @@ Levanta la app:
 
 ```bash
 python manage.py migrate
+python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Abre [http://127.0.0.1:8000/](http://127.0.0.1:8000/). El admin está en `/admin/`.
+Abre [http://127.0.0.1:8000/](http://127.0.0.1:8000/). El admin está en `/admin/`: ahí se crean el operador y el recolector (cada uno atado a un usuario). Después cada uno entra por `/cuentas/entrar/` y cae en su panel.
 
 Para consultar un hash en Horizon:
 
@@ -125,23 +140,16 @@ python scripts/verificar_pago.py <tx_hash>
 
 ## Evidencia en Stellar Testnet
 
-Tres pagos completados de punta a punta (foto → Gemini → confirmación del punto → pago automático), verificables en el explorador:
+Últimas transferencias enviadas, de la más reciente a la más antigua. El total incluye la comisión. **Automático** sale cuando el local confirma Sí y Gemini cuenta los mismos baldes. **Operador** es un pago enviado a mano porque el conteo no cuadró. Cada hash abre la transferencia en el explorador:
 
-| Punto | Ruta | Monto | Estado | Tx hash |
-|---|---|---|---|---|
-| Restaurante Entrepierna | ruta_alberto_003 | 1 XLM | Completado | `db4368b57800f2d971194cbdc5e31efc375bfc8aedba904a9917bf729b080f7a` |
-| Restaurante Alita | ruta_alberto_002 | 1 XLM | Completado | `607714788c08de87a1bdfc31296b40a415510212191b6802a0cd545c35b47adf` |
-| Restaurante Pierna | ruta_alberto_001 | 1 XLM | Completado | `a4826588dc4a4f4e70f67fc16ddb93d7bd3bc3ff3abf92702eee7d7c4dff870c` |
-
-- Explorador: `https://stellar.expert/explorer/testnet/tx/<hash>`
-
-## Qué se construyó durante el evento
-
-- Repositorio, licencia MIT y arquitectura documentada.
-- Agente Stellar en Python (`stellar_agent.py`): firma y envía un pago nativo a Horizon Testnet; el hash queda registrado. Las reglas (Sí + Gemini consistente) viven en `signals.py`.
-- App Django (dashboard, modelos, signals) que soporta el flujo completo de verificación y pago.
-- Scripts de testnet: crear/fondear wallet con Friendbot y verificar un hash.
-- Flujo de punta a punta funcionando: foto → Gemini → link de confirmación → confirmación del punto → pago automático — con tres transacciones completadas en Horizon Testnet (ver Evidencia arriba).
+| Fecha (UTC) | Punto | Total | Comisión | Pago | Transferencia |
+|---|---|---|---|---|---|
+| 2026-09-25 01:09 | Restaurante 001 | 1.3 XLM | 0.3 XLM | Automático | [`9ea8404af7f07a4b3514bd60c5d49b894ca240e278217de13267f21828d9be51`](https://stellar.expert/explorer/testnet/tx/9ea8404af7f07a4b3514bd60c5d49b894ca240e278217de13267f21828d9be51) |
+| 2026-09-24 23:49 | Restaurante 002 | 1 XLM | 0 XLM | Operador | [`7443bc4d06dd407db86ffe494031614a1d30d2766f08fe18890cb6b3375a4320`](https://stellar.expert/explorer/testnet/tx/7443bc4d06dd407db86ffe494031614a1d30d2766f08fe18890cb6b3375a4320) |
+| 2026-09-24 23:41 | Restaurante 002 | 4 XLM | 3 XLM | Automático | [`de712cee1c13f8d89b1f3ae106935ce4dd2101d1a6b55a71a368a7b5c21ed9a1`](https://stellar.expert/explorer/testnet/tx/de712cee1c13f8d89b1f3ae106935ce4dd2101d1a6b55a71a368a7b5c21ed9a1) |
+| 2026-09-24 03:26 | Restaurante 001 | 1 XLM | 0 XLM | Automático | [`3d513415e6b86f07269282622bb37bf2e427ae3c6fd6ff31bb158887a2829956`](https://stellar.expert/explorer/testnet/tx/3d513415e6b86f07269282622bb37bf2e427ae3c6fd6ff31bb158887a2829956) |
+| 2026-09-24 03:16 | Restaurante 001 | 2.1 XLM | 1.1 XLM | Automático | [`b8efb027d46438c5e7a20494f14a60e3ad222cc0af926dfd6bdc3323b7e52b99`](https://stellar.expert/explorer/testnet/tx/b8efb027d46438c5e7a20494f14a60e3ad222cc0af926dfd6bdc3323b7e52b99) |
+| 2026-09-24 03:11 | Restaurante 001 | 1.3 XLM | 0.3 XLM | Operador | [`f5a9077039bdff7f9528b99265502158943b268ddfd7b20c38d24122894b76ec`](https://stellar.expert/explorer/testnet/tx/f5a9077039bdff7f9528b99265502158943b268ddfd7b20c38d24122894b76ec) |
 
 ## Código de terceros
 

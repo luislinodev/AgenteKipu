@@ -38,10 +38,12 @@
                             <td data-label="Fecha" data-live="fecha">{{ ruta.creado_en|fecha_hora_display }}</td>
                             <td data-label="Estado"><span class="estado estado-{{ ruta.estado }}" data-live="estado">{{ ruta.get_estado_display }}</span></td>
                             <td class="acciones" data-live="acciones">
-                                <a data-live="detalle" href="{% url 'detalle_ruta_recolector' ruta.id %}">Detalles</a>
-                                {% if not ruta.foto and ruta.estado != "pagado" and not ruta.confirmacion %}
-                                    <a href="{% url 'subir_foto' ruta.id %}">Subir foto</a>
-                                {% endif %}
+                                <span class="fila-acciones">
+                                    <a class="accion" data-live="detalle" href="{% url 'detalle_ruta_recolector' ruta.id %}">Detalles</a>
+                                    {% if not ruta.foto and ruta.estado != "pagado" and not ruta.confirmacion %}
+                                        <a class="accion accion-foto" href="{% url 'subir_foto' ruta.id %}">Subir foto</a>
+                                    {% endif %}
+                                </span>
                             </td>
                         </tr>
                     {% endfor %}
